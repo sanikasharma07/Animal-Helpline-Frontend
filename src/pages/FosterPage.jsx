@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router'
 import { cn } from '@/lib/utils'
+import API from '@/api/axios'
 import { 
   Home, 
   Heart, 
@@ -137,6 +138,44 @@ export default function FosterPage() {
     hasPets: 'Yes, experienced pet parent',
     message: '',
   })
+  // Live animal data from backend — falls back to MOCK_ANIMALS
+  const [animals, setAnimals] = useState(MOCK_ANIMALS)
+  const [animalsLoading, setAnimalsLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const fetchAnimals = async () => {
+      setAnimalsLoading(true)
+      try {
+        // GET /api/v1/animals/available
+        const res = await API.get('/animals/available')
+        if (!cancelled && res.data?.data) {
+          const mapped = res.data.data.map((a) => ({
+            id: a._id,
+            name: a.name || 'Unknown',
+            species: (a.species || 'dog').toLowerCase(),
+            breed: a.breed || 'Mixed Breed',
+            age: a.age || 'Unknown',
+            gender: a.gender || 'Unknown',
+            city: a.ngo?.address?.city || a.city || '',
+            ngo: a.ngo?.organizationName || 'Animal NGO',
+            status: a.availabilityStatus === 'Available For Adoption' ? 'for_adoption' : 'needs_foster',
+            health: a.healthStatus || 'Healthy',
+            vaccinated: a.isVaccinated || false,
+            sterilized: a.isSterilized || false,
+            image: (a.photos && a.photos[0]) || MOCK_ANIMALS[0].image,
+          }))
+          setAnimals(mapped)
+        }
+      } catch {
+        // Network error or backend offline — keep MOCK_ANIMALS
+      } finally {
+        if (!cancelled) setAnimalsLoading(false)
+      }
+    }
+    fetchAnimals()
+    return () => { cancelled = true }
+  }, [])
 
   // Toggle favorite
   const toggleFavorite = (id) => {
@@ -145,8 +184,8 @@ export default function FosterPage() {
     )
   }
 
-  // Filter animals
-  const filteredAnimals = MOCK_ANIMALS.filter((animal) => {
+  // Filter animals (uses live data if available, otherwise mock)
+  const filteredAnimals = animals.filter((animal) => {
     // Species filter
     let matchSpecies = true
     if (activeSpecies === 'Dogs') matchSpecies = animal.species === 'dog'
@@ -299,21 +338,23 @@ export default function FosterPage() {
               <Clock className="w-4 h-4 text-amber-300 shrink-0" />
               <div className="text-left">
                 <span className="block text-sm font-black leading-none">
-                  {MOCK_ANIMALS.filter(a => a.status === 'needs_foster').length} Needed
+                  {animals.filter(a => a.status === 'needs_foster').length} Needed
                 </span>
                 <span className="text-[11px] text-purple-100 font-medium leading-none">Foster Available</span>
               </div>
             </div>
 
+
             <div className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 text-white shadow-sm flex items-center gap-2 sm:gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
               <div className="text-left">
                 <span className="block text-sm font-black leading-none">
-                  {MOCK_ANIMALS.filter(a => a.status === 'for_adoption').length} Ready
+                  {animals.filter(a => a.status === 'for_adoption').length} Ready
                 </span>
                 <span className="text-[11px] text-purple-100 font-medium leading-none">Adoption Ready</span>
               </div>
             </div>
+
           </motion.div>
         </div>
       </section>

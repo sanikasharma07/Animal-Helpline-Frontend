@@ -45,7 +45,24 @@ export default function NGOOnboarding() {
   };
 
   const handleSubmit = async () => {
-    const resultAction = await dispatch(submitNgoProfile(formData));
+    // Remap frontend form fields to the exact field names the backend expects.
+    // Backend (ngocontrollerl.js) reads:
+    //   organizationName, registrationNumber, description, street, city, state, pinCode,
+    //   animalsHandled, servicesProvided + files: registrationCertificate, panCard, etc.
+    const backendPayload = {
+      organizationName: formData.name,
+      registrationNumber: formData.regNumber,
+      description: formData.description || `${formData.name} — verified animal welfare NGO serving ${formData.city}, ${formData.state}.`,
+      street: formData.address || formData.street || '',
+      city: formData.city,
+      state: formData.state,
+      pinCode: formData.pinCode || '',
+      animalsHandled: formData.animalsHandled,
+      servicesProvided: formData.servicesProvided,
+      documents: formData.documents, // File objects keyed by multer field name
+    };
+
+    const resultAction = await dispatch(submitNgoProfile(backendPayload));
     if (submitNgoProfile.fulfilled.match(resultAction)) {
       setIsSuccess(true);
       setTimeout(() => navigate('/ngo/dashboard'), 2000);

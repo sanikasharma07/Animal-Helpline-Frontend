@@ -8,38 +8,48 @@ export const submitNgoProfile = createAsyncThunk(
   async (formDataObj, { rejectWithValue }) => {
     try {
       const formData = new FormData()
-      
-      const { documents, ...textFields } = formDataObj
-      
-      // Append text fields
+
+      const { documents, animalsHandled, servicesProvided, ...textFields } = formDataObj
+
+      // Append plain text fields
       Object.keys(textFields).forEach(key => {
-        const value = textFields[key]
-        if (Array.isArray(value)) {
-          value.forEach(item => formData.append(`${key}[]`, item))
-        } else {
-          formData.append(key, value)
+        if (textFields[key] !== undefined && textFields[key] !== null) {
+          formData.append(key, textFields[key])
         }
       })
-      
-      // Append documents (File objects for multer)
+
+      // Backend parses comma-separated string OR array — send as comma-joined string
+      if (Array.isArray(animalsHandled)) {
+        formData.append('animalsHandled', animalsHandled.join(','))
+      } else if (animalsHandled) {
+        formData.append('animalsHandled', animalsHandled)
+      }
+
+      if (Array.isArray(servicesProvided)) {
+        formData.append('servicesProvided', servicesProvided.join(','))
+      } else if (servicesProvided) {
+        formData.append('servicesProvided', servicesProvided)
+      }
+
+      // Append document File objects for multer (field names must match backend)
       if (documents) {
         Object.keys(documents).forEach(docId => {
-          if (documents[docId]) {
+          if (documents[docId] instanceof File) {
             formData.append(docId, documents[docId])
           }
         })
       }
 
-      const response = await API.post('/api/v1/ngo/profile', formData, {
+      // Correct URL: baseURL already includes /api/v1
+      const response = await API.post('/ngo/profile', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      
+
       return response.data
     } catch (error) {
       // If backend is not running (network error / dev mode), simulate success
       const isNetworkError = !error.response
       if (isNetworkError) {
-        // Simulate backend processing delay, then resolve successfully
         await new Promise(resolve => setTimeout(resolve, 1200))
         return { success: true, mock: true, message: 'Application submitted (dev mode).' }
       }

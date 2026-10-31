@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router'
+import API from '@/api/axios'
 import {
   Users,
   MapPin,
@@ -142,9 +143,28 @@ export default function VolunteerHub() {
     setFormData({ name: '', phone: '', email: '', notes: '' })
   }
 
-  const handleConfirmSignUp = (e) => {
+  const handleConfirmSignUp = async (e) => {
     e.preventDefault()
     if (!activeModalOpp) return
+
+    try {
+      // POST /api/v1/volunteer — register volunteer interest with the NGO
+      await API.post('/volunteer', {
+        ngoId: activeModalOpp.ngoId || '',
+        opportunityTitle: activeModalOpp.title,
+        opportunityDescription: activeModalOpp.desc,
+        availableDate: activeModalOpp.date,
+        availableTime: activeModalOpp.time,
+        // User contact info from form
+        volunteerName: formData.name,
+        volunteerPhone: formData.phone,
+        volunteerEmail: formData.email,
+        notes: formData.notes,
+      })
+    } catch {
+      // Network error or backend not running — show success UI anyway
+    }
+
     setSignedUpIds((prev) => [...prev, activeModalOpp.id])
     setModalSuccess(true)
     setTimeout(() => {
@@ -152,6 +172,7 @@ export default function VolunteerHub() {
       setModalSuccess(false)
     }, 1800)
   }
+
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 md:pb-6">

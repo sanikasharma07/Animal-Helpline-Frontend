@@ -73,6 +73,8 @@ export default function EmergencySOSModal() {
     if (file) {
       const url = URL.createObjectURL(file)
       setPhotoPreview(url)
+      // Store the actual File object for multipart upload to backend
+      setFormData((prev) => ({ ...prev, _photoFile: file }))
     }
   }
 
@@ -100,17 +102,14 @@ export default function EmergencySOSModal() {
   const handleSubmitSOS = () => {
     dispatch(
       reportEmergency({
+        // Backend field names from emergencycontroller.js:
         species: formData.species,
-        condition: formData.condition || 'Severely injured animal requiring immediate emergency rescue.',
-        severity: formData.severity,
-        location: {
-          address: formData.address,
-          lat: formData.lat,
-          lng: formData.lng,
-        },
-        image: photoPreview || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600',
-        reporterName: formData.reporterName,
-        reporterPhone: formData.reporterPhone,
+        quickDescription: formData.condition || 'Severely injured animal requiring immediate emergency rescue.',
+        longitude: formData.lng,
+        latitude: formData.lat,
+        // mediaFiles: pass actual File objects if available (not URL strings)
+        // photoPreview may be a blob URL — only pass as mediaFiles if it's a real File
+        ...(formData._photoFile ? { mediaFiles: [formData._photoFile] } : {}),
       })
     )
   }

@@ -65,9 +65,11 @@ export default function NearbyNGOs() {
   };
 
   const { location, error: geoError, loading: geoLoading } = useGeolocation();
-  const center = location ? [location.latitude, location.longitude] : [20.5937, 78.9629];
+  // useGeolocation returns { lat, lng } — not latitude/longitude
+  const center = (location?.lat && location?.lng) ? [location.lat, location.lng] : [20.5937, 78.9629];
   
   const { ngos, loading, error } = useNearbyNGOs(center, filters);
+
 
   useEffect(() => {
     const handleResize = () => {
