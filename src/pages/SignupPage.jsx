@@ -84,30 +84,32 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-6 pb-24 sm:pb-6 relative overflow-hidden">
       {/* Decorative background */}
       <div className="absolute top-[-20%] right-[-10%] w-[80%] h-[80%] rounded-full bg-teal-500/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-rose-500/5 blur-[100px] pointer-events-none" />
 
-      <div className="w-full max-w-xl z-10">
+      <div className="w-full max-w-xl z-10 mt-4 sm:mt-0">
         <div className="text-center mb-10">
           <h1 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Join Animal Lifeline</h1>
           <p className="text-slate-500 text-lg">Create your account to start saving lives.</p>
         </div>
 
         {/* Stepper Header */}
-        <div className="flex items-center justify-between mb-8 px-4 relative">
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 rounded-full z-0 pointer-events-none" />
+        <div className="relative flex items-center justify-between mb-8 px-4">
+          {/* Track */}
+          <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-1 bg-slate-200 rounded-full z-0 pointer-events-none" />
+          {/* Progress fill */}
           <div
-            className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary rounded-full z-0 transition-all duration-500 ease-in-out pointer-events-none"
-            style={{ width: `${((step - 1) / 2) * 100}%` }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 h-1 bg-primary rounded-full z-0 transition-all duration-500 ease-in-out pointer-events-none"
+            style={{ width: `calc(${((step - 1) / 2) * 100}% * (100% - 2rem) / 100%)` }}
           />
 
           {[1, 2, 3].map((s) => (
             <div
               key={s}
               className={cn(
-                "relative z-10 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300",
+                "relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300",
                 step === s
                   ? "bg-primary text-white shadow-lg shadow-teal-900/20 scale-110"
                   : step > s
@@ -115,12 +117,12 @@ export default function SignupPage() {
                   : "bg-white text-slate-400 border-2 border-slate-200"
               )}
             >
-              {step > s ? <CheckCircle2 className="w-5 h-5" /> : s}
+              {step > s ? <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" /> : s}
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-10 relative overflow-hidden min-h-[460px]">
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sm:p-8 md:p-10 relative overflow-hidden min-h-[420px]">
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-start gap-3 text-sm">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />

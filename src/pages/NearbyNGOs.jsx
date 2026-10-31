@@ -31,10 +31,21 @@ const tealIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-// Helper component to center map
+// Helper component to center map — guard against undefined coords during geolocation loading
 function ChangeView({ center, zoom }) {
   const map = useMap();
-  map.setView(center, zoom);
+  useEffect(() => {
+    if (
+      center &&
+      center.length === 2 &&
+      typeof center[0] === 'number' &&
+      typeof center[1] === 'number' &&
+      isFinite(center[0]) &&
+      isFinite(center[1])
+    ) {
+      map.setView(center, zoom);
+    }
+  }, [center, zoom, map]);
   return null;
 }
 

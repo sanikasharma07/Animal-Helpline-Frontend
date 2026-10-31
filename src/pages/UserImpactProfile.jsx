@@ -45,7 +45,7 @@ export default function UserImpactProfile() {
   const userId = "u10293"; // Mock user id
   
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-gray-50 pb-24 md:pb-12">
       <div className="max-w-2xl mx-auto p-4 space-y-6">
         
         {/* Section 1: HEADER CARD */}
@@ -78,7 +78,7 @@ export default function UserImpactProfile() {
             </span>
           </div>
           
-          <div className="flex justify-center gap-4 text-sm font-semibold text-slate-700">
+          <div className="flex flex-wrap justify-center gap-2 text-sm font-semibold text-slate-700">
             <span className="bg-slate-100 px-3 py-1 rounded-full">🚨 3 Rescues</span>
             <span className="bg-slate-100 px-3 py-1 rounded-full">🤝 12 Hrs Volunteered</span>
             <span className="bg-slate-100 px-3 py-1 rounded-full">📦 5 Supplies</span>
@@ -86,7 +86,7 @@ export default function UserImpactProfile() {
         </div>
 
         {/* Section 2: LIFETIME STATS */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center flex flex-col items-center justify-center">
             <div className="p-3 bg-rose-50 text-rose-500 rounded-full mb-3">
               <Siren className="h-6 w-6" />

@@ -88,7 +88,7 @@ export default function ActiveRescueTracker() {
   const firstAidTips = getFirstAidTips(rescueCase.species || rescueCase.animalType);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-stretch max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-stretch max-w-4xl mx-auto pb-24 md:pb-6">
       {/* 1. Header / Case Banner */}
       <div className="bg-white p-4 sm:p-6 shadow-sm border-b border-slate-200 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex items-center gap-3">
