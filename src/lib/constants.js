@@ -150,13 +150,14 @@ export const NGO_NAV_ITEMS = [
   { path: '/ngo/dashboard/settings', label: 'Settings', icon: 'Settings' },
 ]
 
+// Admin navigation matches the routes that actually exist in App.jsx.
+// The old list linked to /admin/ngos and /admin/settings, which have no
+// route and rendered the 404 page.
 export const ADMIN_NAV_ITEMS = [
   { path: '/admin', label: 'Overview', icon: 'LayoutDashboard' },
   { path: '/admin/verifications', label: 'Verifications', icon: 'ShieldCheck' },
-  { path: '/admin/ngos', label: 'NGOs', icon: 'Building' },
+  { path: '/admin/reports', label: 'Reports & Moderation', icon: 'Flag' },
   { path: '/admin/users', label: 'Users', icon: 'Users' },
   { path: '/admin/emergencies', label: 'Emergency Cases', icon: 'AlertTriangle' },
   { path: '/admin/campaigns', label: 'Campaigns & Donations', icon: 'Wallet' },
-  { path: '/admin/reports', label: 'Reports', icon: 'Flag' },
-  { path: '/admin/settings', label: 'Settings', icon: 'Settings' },
 ]

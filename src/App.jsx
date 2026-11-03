@@ -1,5 +1,5 @@
-import React, { Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
+import React, { Suspense, lazy, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router'
 import { useSelector } from 'react-redux'
 import { PawPrint } from 'lucide-react'
 import ToastContainer from '@/components/common/ToastContainer'
@@ -42,6 +42,12 @@ const AdminNGOReview = lazy(() => import('@/pages/admin/AdminNGOReview'))
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminEmergencies = lazy(() => import('@/pages/admin/AdminEmergencies'))
 const AdminCampaigns = lazy(() => import('@/pages/admin/AdminCampaigns'))
+const AdminReports = lazy(() => import('@/pages/admin/AdminReports'))
+
+// Vet pages — the vet role existed in the backend (and in the Redux user
+// object) but had no route at all, so a signed-in vet was redirected to
+// /dashboard (user-only) and bounced in a loop.
+const VetDashboard = lazy(() => import('@/pages/vet/VetDashboard'))
 
 // ProtectedRoute — role enforcement via Redux auth state only
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -52,6 +58,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (allowedRoles && !allowedRoles.includes(user?.role)) {
     if (user?.role === 'admin') return <Navigate to="/admin" replace />
     if (user?.role === 'ngo') return <Navigate to="/ngo/dashboard" replace />
+    if (user?.role === 'vet') return <Navigate to="/vet/dashboard" replace />
     return <Navigate to="/dashboard" replace />
   }
 
@@ -71,9 +78,30 @@ const PageLoader = () => (
   </div>
 )
 
+// When the API layer refreshes the session and fails, it fires
+// 'al:session-expired' (only for a previously authenticated session).
+// A public page must not be hijacked by that event, so navigation to
+// login happens only from protected routes.
+function SessionWatcher() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  useEffect(() => {
+    const handler = () => {
+      const protectedPrefixes = ['/dashboard', '/profile', '/tracker', '/ngo/dashboard', '/vet/dashboard', '/admin']
+      if (protectedPrefixes.some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`))) {
+        navigate('/login', { replace: true })
+      }
+    }
+    window.addEventListener('al:session-expired', handler)
+    return () => window.removeEventListener('al:session-expired', handler)
+  }, [navigate, location.pathname])
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <SessionWatcher />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public Routes */}
@@ -82,7 +110,16 @@ export default function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/nearby-ngos" element={<NearbyNGOs />} />
           <Route path="/ngo/:id" element={<NGOPublicProfile />} />
-          <Route path="/ngo/onboarding" element={<NGOOnboarding />} />
+          {/* Onboarding submits to an authenticated endpoint, so it must
+              not be reachable as a public page that can only fail on submit. */}
+          <Route
+            path="/ngo/onboarding"
+            element={
+              <ProtectedRoute allowedRoles={['user', 'ngo']}>
+                <NGOOnboarding />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Phase 4: Campaign Details & Rescue Tracker */}
           <Route path="/campaign/:id" element={<CampaignDetails />} />
@@ -107,8 +144,18 @@ export default function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute allowedRoles={['user', 'ngo', 'admin']}>
+              <ProtectedRoute allowedRoles={['user', 'ngo', 'admin', 'vet']}>
                 <UserImpactProfile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Vet Routes */}
+          <Route
+            path="/vet/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['vet']}>
+                <VetDashboard />
               </ProtectedRoute>
             }
           />
@@ -147,6 +194,7 @@ export default function App() {
           >
             <Route path="verifications" element={<AdminVerifications />} />
             <Route path="verifications/:id" element={<AdminNGOReview />} />
+            <Route path="reports" element={<AdminReports />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="emergencies" element={<AdminEmergencies />} />
             <Route path="campaigns" element={<AdminCampaigns />} />

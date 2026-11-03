@@ -12,8 +12,16 @@ export const reportEmergency = createAsyncThunk(
       const formData = new FormData()
       formData.append('species', emergencyData.species || 'Unknown')
       formData.append('quickDescription', emergencyData.quickDescription || emergencyData.condition || 'Animal in distress')
-      formData.append('longitude', String(emergencyData.longitude ?? emergencyData.location?.lng ?? 78.9629))
-      formData.append('latitude', String(emergencyData.latitude ?? emergencyData.location?.lat ?? 20.5937))
+      // Never invent a location for an emergency: without real coordinates
+      // the backend cannot find nearby help, and a wrong pin sends rescuers
+      // to the wrong place. The caller must supply device or manual coordinates.
+      const lng = emergencyData.longitude ?? emergencyData.location?.lng
+      const lat = emergencyData.latitude ?? emergencyData.location?.lat
+      if (!Number.isFinite(Number(lng)) || !Number.isFinite(Number(lat))) {
+        return rejectWithValue('Location is required to report an emergency. Please allow location access or enter coordinates.')
+      }
+      formData.append('longitude', String(lng))
+      formData.append('latitude', String(lat))
 
       // Attach optional media files
       if (emergencyData.mediaFiles && emergencyData.mediaFiles.length > 0) {
@@ -28,30 +36,7 @@ export const reportEmergency = createAsyncThunk(
 
       return response.data.data
     } catch (error) {
-      // Mock fallback when backend is not running
-      const isNetworkError =
-        !error.response || error.statusCode === undefined || error.code === 'ERR_NETWORK'
-      if (isNetworkError) {
-        await new Promise((resolve) => setTimeout(resolve, 1200))
-        const newCase = {
-          _id: `sos-${Date.now()}`,
-          animalInfo: {
-            species: emergencyData.species || 'Dog',
-            quickDescription: emergencyData.quickDescription || emergencyData.condition || 'Animal in distress',
-          },
-          location: {
-            type: 'Point',
-            coordinates: [
-              emergencyData.longitude ?? emergencyData.location?.lng ?? 78.9629,
-              emergencyData.latitude ?? emergencyData.location?.lat ?? 20.5937,
-            ],
-          },
-          status: 'Reported',
-          createdAt: new Date().toISOString(),
-        }
-        return newCase
-      }
-      return rejectWithValue(error?.message || 'Failed to dispatch SOS emergency')
+      return rejectWithValue(error?.message || 'Failed to report the emergency. Please try again.')
     }
   }
 )
@@ -93,11 +78,13 @@ const emergencySlice = createSlice({
         state.isLoading = false
         state.cases.unshift(action.payload)
         state.activeCase = action.payload
-        state.successMessage = '🚨 SOS Broadcast Successful! Nearby NGOs & Rescue Teams Notified.'
+        // Honest wording: reporting does not notify or assign any NGO.
+        // Assignment happens only when a verified NGO accepts the case.
+        state.successMessage = 'Emergency reported. A verified NGO can now accept it, and you can track it from your dashboard.'
       })
       .addCase(reportEmergency.rejected, (state, action) => {
         state.isLoading = false
-        state.error = action.payload || 'Failed to dispatch SOS alert.'
+        state.error = action.payload || 'Failed to report the emergency.'
       })
   },
 })

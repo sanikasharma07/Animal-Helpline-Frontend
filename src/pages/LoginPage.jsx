@@ -89,16 +89,9 @@ export default function LoginPage() {
           transition={{ duration: 1, delay: 0.6 }}
           className="z-10 flex items-center gap-4 p-5 rounded-2xl bg-black/20 backdrop-blur-md w-max border border-white/10"
         >
-          <div className="flex -space-x-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="w-10 h-10 rounded-full border-2 border-teal-800 bg-teal-200 flex items-center justify-center overflow-hidden">
-                <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="User" />
-              </div>
-            ))}
-          </div>
           <div className="text-sm font-medium">
-            <span className="block text-xl font-bold text-teal-300">1,200+</span>
-            <span className="text-white/80">animals rescued this month</span>
+            <span className="block text-xl font-bold text-teal-300">Sign in to help</span>
+            <span className="text-white/80">Report and track emergencies, donate, pledge supplies and volunteer.</span>
           </div>
         </motion.div>
       </div>

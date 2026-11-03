@@ -1,278 +1,177 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router';
-import { useSelector } from 'react-redux';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { ArrowLeft, MapPin, Phone, MessageCircle, CheckCircle2, Clock, AlertTriangle, Zap, Shield, Truck } from 'lucide-react';
+import React, { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router'
+import { useSelector } from 'react-redux'
+import API from '@/api/axios'
+import { ArrowLeft, MapPin, CheckCircle2, AlertTriangle, Shield } from 'lucide-react'
 
-const statuses = [
-  'Rescue Accepted',
-  'Rescuer Dispatched',
-  'Rescuer En Route',
-  '15 min away',
-  '10 min away',
-  '5 min away',
-  'Animal Picked Up',
-  'En Route to Vet',
-  'At Veterinary Facility'
-];
+// Real rescue tracking. Backend:
+//   GET /emergency/:id — reporter, assigned NGO or admin only (others 403).
+//   Statuses (forward-only): Reported → Help Requested → Rescue Accepted
+//     → Rescuer On The Way → Animal Picked Up → At Veterinary Facility
+//     → Resolved. Forward skips are allowed, backwards moves are refused.
+//   PATCH /emergency/:id/status { status } — assigned NGO only.
+//   POST /emergency/:id/updates { type, message, photos? } — assigned NGO.
+//   PATCH /emergency/:id/request-info, PATCH /emergency/:id/unable-to-respond.
+// The old tracker invented a timeline that advanced itself every 8
+// seconds, invented ETAs ("15 min away"), a rescuer phone number and a
+// chat button. None of that exists in the backend: there is no live GPS,
+// no ETAs, no chat and no contact sharing. Progress updates are the
+// only real-time-ish signal, and they come from the assigned NGO.
+const TRACKING_ORDER = ['Reported', 'Help Requested', 'Rescue Accepted', 'Rescuer On The Way', 'Animal Picked Up', 'At Veterinary Facility', 'Resolved']
+const NEXT_TRACKING = { 'Rescue Accepted': 'Rescuer On The Way', 'Rescuer On The Way': 'Animal Picked Up', 'Animal Picked Up': 'At Veterinary Facility', 'At Veterinary Facility': 'Resolved' }
+const UPDATE_TYPES = ['Rescue', 'Animal Picked Up', 'Veterinary Facility', 'Treatment', 'General Update']
 
 export default function ActiveRescueTracker() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const cases = useSelector((state) => state.emergency?.cases || []);
-  const rescueCase = cases.find((c) => c.id === id);
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { user } = useSelector((state) => state.auth)
+  const [c, setC] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [updateType, setUpdateType] = useState('General Update')
+  const [updateMessage, setUpdateMessage] = useState('')
+  const [posting, setPosting] = useState(false)
 
-  const [statusIndex, setStatusIndex] = useState(0);
-
-  useEffect(() => {
-    if (!rescueCase) return;
-    
-    const interval = setInterval(() => {
-      setStatusIndex((prev) => {
-        if (prev < statuses.length - 1) return prev + 1;
-        clearInterval(interval);
-        return prev;
-      });
-    }, 8000);
-    
-    return () => clearInterval(interval);
-  }, [rescueCase]);
-
-  if (!rescueCase) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 gap-4 text-center">
-        <AlertTriangle className="w-12 h-12 text-rose-500" />
-        <h2 className="text-xl font-semibold text-slate-800">Case Not Found</h2>
-        <p className="text-slate-600">The emergency case you're looking for does not exist or has been resolved.</p>
-        <button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-teal-600 text-white rounded-lg shadow font-medium">Go Back</button>
-      </div>
-    );
+  const fetchCase = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await API.get(`/emergency/${id}`)
+      setC(res.data?.data || null)
+    } catch (err) {
+      setError(err?.message || 'Case could not be loaded. Only the reporter, the assigned NGO or an admin can view it.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const currentStatus = statuses[statusIndex];
-  const ngoName = rescueCase.assignedNgoName || 'Local Animal Rescue';
-  
-  const getFirstAidTips = (species) => {
-    const s = (species || '').toLowerCase();
-    if (s.includes('dog') || s.includes('cat')) {
-      return [
-        'Keep the animal calm and do not attempt to move it.',
-        'If bleeding, apply gentle pressure with clean cloth.',
-        'Do not offer food or water.',
-        'Keep it shaded and away from traffic.'
-      ];
-    } else if (s.includes('bird')) {
-      return [
-        'Gently place in a ventilated cardboard box.',
-        'Keep it in a dark, quiet, and warm place.',
-        'Do not try to feed or give water.',
-        'Do not use wire cages.'
-      ];
-    } else if (s.includes('cattle') || s.includes('cow')) {
-      return [
-        'Do not approach from behind; approach slowly from the side.',
-        'Ensure the area is secure to prevent further injury.',
-        'Do not force the animal to stand if it is lying down.',
-        'Provide shade if possible.'
-      ];
-    }
-    return [
-      'Keep your distance and do not panic the animal.',
-      'Ensure the area is secure.',
-      'Wait for trained professionals to arrive.',
-      'Do not offer food or water unless instructed.'
-    ];
-  };
+  useEffect(() => { fetchCase() }, [id])
 
-  const firstAidTips = getFirstAidTips(rescueCase.species || rescueCase.animalType);
+  // The detail endpoint populates assignedNgo with organizationName only;
+  // whether the caller is that NGO is proven by the backend itself: the
+  // status/update endpoints refuse anyone who is not the assigned NGO.
+  // So the action buttons are shown to any signed-in NGO viewing an
+  // assigned case, and the backend enforces the real check.
+  const showNgoActions = user?.role === 'ngo' && !!c?.assignedNgo && c.status !== 'Resolved'
+
+  const act = async (fn) => {
+    setActionError('')
+    try { await fn(); fetchCase() } catch (err) { setActionError(err?.message || 'Action could not be completed.') }
+  }
+
+  const postUpdate = async (e) => {
+    e.preventDefault()
+    setPosting(true)
+    try {
+      await API.post(`/emergency/${id}/updates`, { type: updateType, message: updateMessage.trim() })
+      setUpdateMessage('')
+      fetchCase()
+    } catch (err) {
+      setActionError(err?.message || 'Update could not be posted.')
+    } finally {
+      setPosting(false)
+    }
+  }
+
+  if (loading) return <div className="min-h-screen bg-[#F7F5EF] flex items-center justify-center p-6"><div className="animate-spin w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full" role="status" aria-label="Loading case" /></div>
+  if (error || !c) {
+    return (
+      <div className="min-h-screen bg-[#F7F5EF] flex flex-col items-center justify-center p-6 gap-4 text-center">
+        <AlertTriangle className="w-12 h-12 text-amber-500" />
+        <h2 className="text-xl font-semibold text-slate-800">Case not available</h2>
+        <p className="text-slate-600 max-w-md">{error || 'This case does not exist.'} Emergency cases are private: only the reporter, the assigned NGO and admins can view them.</p>
+        <button onClick={() => navigate(-1)} className="px-6 py-2 bg-[#087F70] text-white rounded-lg shadow font-medium">Go back</button>
+      </div>
+    )
+  }
+
+  const currentIndex = TRACKING_ORDER.indexOf(c.status)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-stretch max-w-4xl mx-auto pb-24 md:pb-6">
-      {/* 1. Header / Case Banner */}
-      <div className="bg-white p-4 sm:p-6 shadow-sm border-b border-slate-200 flex flex-col gap-4 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-600 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              Live Rescue Tracking
-            </h1>
-          </div>
-          <div className="px-3 py-1 bg-rose-500 text-white text-xs font-bold rounded-full shadow-sm">
-            {rescueCase.id}
-          </div>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="px-3 py-1 bg-slate-100 text-slate-700 font-medium rounded-full border border-slate-200 capitalize">
-            {rescueCase.species || rescueCase.animalType || 'Animal'}
-          </span>
-          <span className="px-3 py-1 bg-amber-50 text-amber-700 font-medium rounded-full border border-amber-200 capitalize flex items-center gap-1">
-            <Zap className="w-3 h-3" />
-            {rescueCase.severity || 'Urgent'}
-          </span>
-          <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-teal-50 text-teal-700 font-semibold rounded-full border border-teal-200">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-600"></span>
-            </span>
-            {currentStatus}
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#F7F5EF]">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        <button type="button" onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-teal-700">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
 
-      <div className="p-4 sm:p-6 flex flex-col gap-6">
-        {/* 2. Map Placeholder */}
-        <div className="relative w-full h-64 sm:h-80 bg-slate-200 rounded-2xl border border-slate-300 overflow-hidden shadow-inner flex items-center justify-center">
-          {/* Dot pattern background */}
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#475569 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
-          
-          <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-2 text-xs font-semibold text-slate-700">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            Live Tracking — GPS Active
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+          <div className="flex flex-wrap justify-between gap-2">
+            <h1 className="font-display text-2xl font-bold text-[#183B35]">{c.animalInfo?.species || 'Animal'} emergency</h1>
+            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#DDE9DF] text-[#183B35] self-start">{c.status}</span>
           </div>
-
-          <div className="absolute bottom-4 right-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm text-xs font-mono text-slate-600 flex items-center gap-1.5">
-            <MapPin className="w-3 h-3 text-slate-400" />
-            Lat: {rescueCase.location?.lat?.toFixed(4) || '19.0760'} | Lng: {rescueCase.location?.lng?.toFixed(4) || '72.8777'}
-          </div>
-
-          {/* Map Elements Simulation */}
-          <div className="relative w-full h-full flex items-center justify-center">
-            {/* Dashed line */}
-            <svg className="absolute w-48 h-32 text-teal-600 opacity-40 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <path d="M 20,80 C 40,20 60,80 80,20" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
-            </svg>
-            
-            {/* Rescuer Pin */}
-            <motion.div 
-              className="absolute top-1/3 right-1/3 flex flex-col items-center z-10"
-              animate={{ x: [0, -10, -20], y: [0, 10, 20] }}
-              transition={{ duration: 16, repeat: Infinity, repeatType: "reverse" }}
-            >
-              <div className="bg-teal-600 p-2 rounded-full shadow-lg text-white">
-                <Truck className="w-5 h-5" />
-              </div>
-              <div className="mt-1 px-2 py-0.5 bg-white text-[10px] font-bold text-teal-700 rounded shadow border border-teal-100">
-                Rescuer
-              </div>
-            </motion.div>
-            
-            {/* Emergency Pin */}
-            <div className="absolute bottom-1/3 left-1/3 flex flex-col items-center">
-              <div className="relative">
-                <div className="absolute -inset-2 bg-rose-500/20 rounded-full animate-ping"></div>
-                <div className="bg-rose-500 p-2 rounded-full shadow-lg text-white relative z-10">
-                  <MapPin className="w-5 h-5" />
-                </div>
-              </div>
-              <div className="mt-1 px-2 py-0.5 bg-white text-[10px] font-bold text-rose-700 rounded shadow border border-rose-100 relative z-10">
-                Emergency
-              </div>
+          <p className="text-sm text-slate-600">{c.animalInfo?.quickDescription || c.quickDescription || ''}</p>
+          {c.location?.coordinates && <p className="text-xs text-slate-500 flex items-center gap-1"><MapPin className="w-4 h-4" /> Location: {c.location.coordinates[1]}, {c.location.coordinates[0]}</p>}
+          <p className="text-xs text-slate-500 flex items-center gap-1"><Shield className="w-4 h-4 text-[#087F70]" /> Assigned NGO: {c.assignedNgo?.organizationName || 'Not yet assigned — a verified NGO can accept this case.'}</p>
+          {c.aiCare && (
+            <div className="bg-[#F7F5EF] border border-[#DDE9DF] rounded-xl p-4">
+              <p className="text-xs font-bold text-[#183B35] mb-1">First-aid guidance (rule-based, not a diagnosis)</p>
+              <p className="text-sm text-slate-600">{c.aiCare}</p>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* 3. Rescuer Contact Card */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col gap-5">
-          <div className="flex items-center gap-4">
-            <img 
-              src={`https://i.pravatar.cc/80?u=${encodeURIComponent(ngoName)}`} 
-              alt="Rescuer avatar" 
-              className="w-14 h-14 rounded-full border-2 border-teal-100 shadow-sm object-cover"
-            />
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base font-bold text-slate-800 truncate">{ngoName}</h3>
-              <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
-                <Truck className="w-3.5 h-3.5" /> Rescue Van
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-slate-500 font-medium">ETA</div>
-              <div className="text-lg font-bold text-teal-700">
-                {currentStatus.includes('min') ? currentStatus.split(' ')[0] + 'm' : '~'}
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button className="flex-1 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white py-2.5 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm">
-              <Phone className="w-4 h-4" /> Call Rescuer
-            </button>
-            <button className="flex-1 bg-white hover:bg-slate-50 active:bg-slate-100 text-teal-700 border border-teal-600 py-2.5 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors">
-              <MessageCircle className="w-4 h-4" /> Message
-            </button>
-          </div>
-        </div>
-
-        {/* 4. Live Timeline */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-          <h3 className="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-teal-600" /> Activity Log
-          </h3>
-          <div className="flex flex-col relative">
-            <div className="absolute left-3 top-2 bottom-2 w-[2px] bg-slate-100 z-0"></div>
-            {statuses.map((status, index) => {
-              const isCompleted = index < statusIndex;
-              const isCurrent = index === statusIndex;
-              
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+          <h2 className="font-bold text-[#183B35] mb-4">Rescue progress</h2>
+          <p className="text-xs text-slate-500 mb-4">Status moves forward only, as the assigned NGO updates it. There are no ETAs or live locations in this system — updates below are the record.</p>
+          <ol className="space-y-4">
+            {TRACKING_ORDER.map((status, i) => {
+              const done = i < currentIndex
+              const current = i === currentIndex
               return (
-                <div key={status} className="flex gap-4 relative z-10 mb-4 last:mb-0">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-white">
-                    {isCompleted ? (
-                      <CheckCircle2 className="w-5 h-5 text-teal-600" />
-                    ) : isCurrent ? (
-                      <span className="relative flex h-3.5 w-3.5 mt-1 ml-1">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-teal-600 ring-4 ring-teal-50"></span>
-                      </span>
-                    ) : (
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-300 mt-1.5 ml-1.5"></div>
-                    )}
-                  </div>
-                  <div className="flex-1 pt-0.5">
-                    <p className={cn(
-                      "text-sm font-medium",
-                      isCompleted ? "text-slate-800" : isCurrent ? "text-teal-700 font-bold" : "text-slate-400"
-                    )}>
-                      {status}
-                    </p>
-                    {(isCompleted || isCurrent) && (
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {new Date(Date.now() - (statusIndex - index) * 60000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
+                <li key={status} className="flex gap-3">
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${done || current ? 'bg-[#087F70] text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    {done || current ? <CheckCircle2 className="w-4 h-4" /> : <span className="w-2 h-2 rounded-full bg-slate-300" />}
+                  </span>
+                  <span className={`text-sm ${current ? 'font-bold text-slate-900' : done ? 'text-slate-700' : 'text-slate-400'}`}>{status}{current ? ' — current' : ''}</span>
+                </li>
+              )
             })}
-          </div>
+          </ol>
         </div>
 
-        {/* 5. AI First-Aid Card */}
-        <div className="bg-amber-50 rounded-2xl p-5 border border-amber-200 flex flex-col gap-4">
-          <h3 className="text-amber-800 font-bold flex items-center gap-2 text-base">
-            <span className="text-xl">🤖</span> AI First-Aid Assistant
-          </h3>
-          <ul className="flex flex-col gap-3">
-            {firstAidTips.map((tip, i) => (
-              <li key={i} className="flex items-start gap-2.5 text-sm text-amber-900 font-medium">
-                <Shield className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                <span>{tip}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-2 pt-3 border-t border-amber-200/60 text-xs text-amber-700/80 font-medium italic">
-            Disclaimer: These are general guidelines. A trained rescuer is on the way.
-          </div>
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+          <h2 className="font-bold text-[#183B35]">Progress updates</h2>
+          {(!c.updates || c.updates.length === 0) ? (
+            <p className="text-sm text-slate-500">No progress updates yet. The assigned NGO posts updates here as the rescue proceeds.</p>
+          ) : (
+            <ul className="space-y-3">
+              {[...c.updates].reverse().map((u, i) => (
+                <li key={i} className="border-b border-slate-100 last:border-0 pb-3">
+                  <p className="text-sm font-bold text-slate-900">{u.type} <span className="font-normal text-slate-500">• {u.ngo?.organizationName || 'Assigned NGO'}</span></p>
+                  <p className="text-sm text-slate-600">{u.message}</p>
+                  {u.photos?.length > 0 && <div className="flex gap-2 mt-2">{u.photos.map((ph, j) => <img key={j} src={ph} alt="Progress update" className="w-20 h-20 object-cover rounded-lg" />)}</div>}
+                  <p className="text-[11px] text-slate-400 mt-1">{u.createdAt ? new Date(u.createdAt).toLocaleString() : ''}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
+        {showNgoActions && (
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+            <h2 className="font-bold text-[#183B35]">NGO actions</h2>
+            <p className="text-xs text-slate-500">These actions are enforced by the backend: only the assigned NGO can use them. If you are not that NGO, the backend refuses with an error shown below.</p>
+            {actionError && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl p-3">{actionError}</div>}
+            {NEXT_TRACKING[c.status] && (
+              <button onClick={() => act(() => API.patch(`/emergency/${id}/status`, { status: NEXT_TRACKING[c.status] }))} className="w-full py-3 bg-[#087F70] text-white text-sm font-bold rounded-xl hover:bg-[#183B35]">Advance status to {NEXT_TRACKING[c.status]}</button>
+            )}
+            <div className="flex gap-2">
+              <button onClick={() => act(() => API.patch(`/emergency/${id}/request-info`))} className="flex-1 py-2.5 bg-white border border-slate-200 text-sm font-bold rounded-xl hover:bg-slate-50">Request more info from reporter</button>
+              <button onClick={() => act(() => API.patch(`/emergency/${id}/unable-to-respond`))} className="flex-1 py-2.5 bg-white border border-rose-200 text-rose-600 text-sm font-bold rounded-xl hover:bg-rose-50">Unable to respond (release case)</button>
+            </div>
+            <form onSubmit={postUpdate} className="space-y-2 pt-2 border-t border-slate-100">
+              <label className="block text-xs font-bold text-slate-700">Post a progress update
+                <select value={updateType} onChange={(e) => setUpdateType(e.target.value)} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm">
+                  {UPDATE_TYPES.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </label>
+              <textarea required value={updateMessage} onChange={(e) => setUpdateMessage(e.target.value)} rows={3} placeholder="What happened?" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
+              <button type="submit" disabled={posting} className="w-full py-3 bg-[#087F70] text-white text-sm font-bold rounded-xl disabled:opacity-50">{posting ? 'Posting…' : 'Post update'}</button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }

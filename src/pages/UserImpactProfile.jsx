@@ -27,21 +27,6 @@ const AnimatedCounter = ({ target, duration = 1000 }) => {
   return <>{count}</>
 }
 
-// ── Static fallback timeline when backend is offline ────────────────────────
-const FALLBACK_TIMELINE = [
-  { type: 'Emergency', date: 'Sep 13, 2026', title: 'Reported Injured Dog', ngoName: 'Local Animal Rescue', status: 'Resolved', color: 'bg-rose-500', pill: 'Emergency', pillColor: 'bg-rose-100 text-rose-700' },
-  { type: 'Supply', date: 'Sep 10, 2026', title: 'Donated 5kg Dog Food', ngoName: 'Prani Seva Sansthan', color: 'bg-blue-500', pill: 'Supply Drop', pillColor: 'bg-blue-100 text-blue-700' },
-  { type: 'Donation', date: 'Aug 28, 2026', title: "Donated ₹500 towards: Bruno's Surgery Fund", ngoName: 'Helping Paws Foundation', color: 'bg-emerald-500', pill: 'Donation', pillColor: 'bg-emerald-100 text-emerald-700' },
-  { type: 'Emergency', date: 'Aug 20, 2026', title: 'Reported Trapped Kitten', ngoName: 'City Animal Care', status: 'Resolved', color: 'bg-rose-500', pill: 'Emergency', pillColor: 'bg-rose-100 text-rose-700' },
-]
-
-const FALLBACK_STATS = {
-  rescuesReported: 3,
-  suppliesDonated: 2,
-  campaignsFunded: 1,
-  volunteerHours: 0,
-}
-
 // ── Type → pill color mapping ────────────────────────────────────────────────
 const TYPE_META = {
   Emergency: { color: 'bg-rose-500', pill: 'Emergency', pillColor: 'bg-rose-100 text-rose-700' },
@@ -57,7 +42,6 @@ export default function UserImpactProfile() {
   const [timeline, setTimeline] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [isMock, setIsMock] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -75,20 +59,12 @@ export default function UserImpactProfile() {
               ...TYPE_META[item.type],
             }))
           )
-          setIsMock(false)
         }
       } catch (err) {
-        if (!cancelled) {
-          // Fall back to user.impact (stored in Redux after login) or static defaults
-          const impact = user?.impact || FALLBACK_STATS
-          setLifetimeStats(impact)
-          setTimeline(FALLBACK_TIMELINE)
-          setIsMock(true)
-          if (err.response) {
-            setError(err?.message || 'Could not load impact data')
-          }
-          // If network error, silently use fallback — no error shown
-        }
+        // No fallback data: showing invented rescues, donations or NGOs as
+        // if they were the user's own history would be dishonest. The
+        // error is shown instead, with a retry.
+        if (!cancelled) setError(err?.message || 'Could not load impact data')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -97,7 +73,7 @@ export default function UserImpactProfile() {
     return () => { cancelled = true }
   }, [user?.impact])
 
-  const stats = lifetimeStats || FALLBACK_STATS
+  const stats = lifetimeStats || { rescuesReported: 0, suppliesDonated: 0, campaignsFunded: 0, volunteerHours: 0 }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-12">
@@ -113,12 +89,8 @@ export default function UserImpactProfile() {
           </button>
 
           <div className="mx-auto w-24 h-24 rounded-full border-4 border-teal-200 overflow-hidden mb-4 bg-teal-50 flex items-center justify-center">
-            {user ? (
-              <img
-                src={`https://i.pravatar.cc/200?u=${user._id || user.id || user.email}`}
-                alt="User Avatar"
-                className="w-full h-full object-cover"
-              />
+            {user?.name ? (
+              <span className="text-3xl font-black text-teal-700">{user.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
             ) : (
               <PawPrint className="h-10 w-10 text-teal-400" />
             )}
@@ -129,10 +101,6 @@ export default function UserImpactProfile() {
           </h1>
 
           <div className="flex flex-wrap justify-center items-center gap-3 mb-4">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black border border-amber-300">
-              <Shield className="h-3.5 w-3.5" />
-              Verified Helper
-            </span>
             <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
               <Calendar className="h-4 w-4" />
               {user?.createdAt
@@ -147,8 +115,8 @@ export default function UserImpactProfile() {
             <span className="bg-slate-100 px-3 py-1 rounded-full">📦 {stats.suppliesDonated} Supplies</span>
           </div>
 
-          {isMock && !error && (
-            <p className="text-[11px] text-slate-400 mt-3">Showing offline demo data</p>
+          {error && (
+            <p className="text-sm text-rose-600 mt-3">{error} <button onClick={() => window.location.reload()} className="font-bold underline">Retry</button></p>
           )}
         </div>
 

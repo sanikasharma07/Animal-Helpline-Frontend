@@ -7,7 +7,6 @@ import {
   HandHeart, Package, Home, ChevronRight, ArrowRight, 
   Star, CheckCircle2, Siren, Phone, Menu, X 
 } from 'lucide-react';
-import { mockNGOs } from '@/data/mockNGOs';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -83,7 +82,7 @@ const Hero = () => {
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 w-fit backdrop-blur-sm text-sm font-medium">
               <Star className="w-4 h-4 text-warning" fill="currentColor" />
-              <span>India's #1 Animal Rescue Network</span>
+              <span>An animal emergency & welfare ecosystem</span>
             </div>
             
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight">
@@ -91,16 +90,17 @@ const Hero = () => {
             </h1>
             
             <p className="text-lg md:text-xl text-slate-300 leading-relaxed max-w-xl">
-              Connecting compassionate people with verified NGOs. Report emergencies, volunteer, donate, and track the impact of your kindness in real-time.
+              Connecting compassionate people with verified NGOs and vets. Report emergencies, volunteer, donate, and follow each rescue as the assigned NGO updates it.
             </p>
             
             <div className="flex flex-wrap gap-4 pt-4">
               <Link to="/signup" className="px-8 py-4 rounded-full bg-primary text-white font-semibold text-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center gap-2">
                 Get Started <ArrowRight className="w-5 h-5" />
               </Link>
-              <Link to="/emergency" className="px-8 py-4 rounded-full bg-emergency text-white font-semibold text-lg hover:bg-emergency/90 transition-all shadow-lg shadow-emergency/25 flex items-center gap-2 animate-pulse relative">
+              <Link to="/nearby-ngos" className="px-8 py-4 rounded-full bg-emergency text-white font-semibold text-lg hover:bg-emergency/90 transition-all shadow-lg shadow-emergency/25 flex items-center gap-2 animate-pulse relative">
                 <Siren className="w-5 h-5" /> I Need Help Now
               </Link>
+              <p className="text-sm text-slate-300 w-full">Nearby Help works without sign-in: it shows verified NGOs and vets near you, plus external clinics and shelters from OpenStreetMap, clearly labelled as not registered here.</p>
             </div>
           </motion.div>
           
@@ -116,11 +116,11 @@ const Hero = () => {
                    <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                  </div>
                  <div>
-                   <h3 className="font-bold text-white text-sm">Rescue Successful</h3>
-                   <p className="text-xs text-slate-400">Just now in Mumbai</p>
+                   <h3 className="font-bold text-white text-sm">How a rescue works</h3>
+                   <p className="text-xs text-slate-400">Report → a verified NGO accepts → you track its progress</p>
                  </div>
                </div>
-               <p className="text-sm text-slate-300 leading-relaxed">Street dog reported with injury has been safely transported to Happy Tails Shelter.</p>
+               <p className="text-sm text-slate-300 leading-relaxed">Reporting creates a case a verified NGO can accept. Progress updates come from the assigned NGO — there is no automatic dispatch.</p>
              </motion.div>
 
              <motion.div 
@@ -130,16 +130,13 @@ const Hero = () => {
                className="absolute bottom-20 left-10 glass-dark bg-slate-800/80 p-5 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-md flex items-center gap-4"
              >
                <div className="relative shrink-0">
-                 <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white/20">
-                   <img src="https://images.unsplash.com/photo-1537151608804-ea6fac420cb9?w=100&auto=format&fit=crop" alt="Volunteer" className="w-full h-full object-cover" />
-                 </div>
-                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-2 border-slate-800 flex items-center justify-center">
-                   <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                 <div className="w-14 h-14 rounded-full border-2 border-white/20 bg-emerald-500/20 flex items-center justify-center">
+                   <MapPin className="w-7 h-7 text-emerald-300" />
                  </div>
                </div>
                <div>
-                 <div className="text-2xl font-bold text-white flex items-center gap-1">5,000+</div>
-                 <p className="text-sm text-slate-400 font-medium">Active Volunteers</p>
+                 <div className="text-2xl font-bold text-white flex items-center gap-1">Verified & external</div>
+                 <p className="text-sm text-slate-400 font-medium">Nearby Help, clearly labelled</p>
                </div>
              </motion.div>
           </div>
@@ -160,13 +157,13 @@ const HowItWorks = () => {
     {
       icon: <Users className="w-8 h-8 text-primary" />,
       title: "Connect",
-      desc: "Our AI matches your report with the nearest verified NGOs and available volunteers.",
+      desc: "Your report is visible to verified NGOs, who accept it and post progress updates as the rescue proceeds.",
       color: "bg-primary/10 border-primary/20"
     },
     {
       icon: <Shield className="w-8 h-8 text-success" />,
       title: "Rescue & Track",
-      desc: "Help arrives. Track the rescue status and get real-time updates on the animal's recovery.",
+      desc: "Help arrives when a verified NGO accepts the case. Track its status and progress updates from that NGO.",
       color: "bg-success/10 border-success/20"
     }
   ];
@@ -176,7 +173,7 @@ const HowItWorks = () => {
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">How Animal Lifeline Works</h2>
-          <p className="text-muted-foreground text-lg">Three simple steps to save a life. Our technology ensures rapid response when seconds matter.</p>
+          <p className="text-muted-foreground text-lg">Three simple steps to save a life. Reporting is the first step — a verified NGO accepting the case is what starts a rescue.</p>
         </div>
 
         <div className="relative">
@@ -210,26 +207,6 @@ const HowItWorks = () => {
   );
 };
 
-const Counter = ({ end, suffix = "", duration = 2000 }) => {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    let startTimestamp = null;
-    const step = (timestamp) => {
-      if (!startTimestamp) startTimestamp = timestamp;
-      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.floor(easeProgress * end));
-      if (progress < 1) {
-        window.requestAnimationFrame(step);
-      }
-    };
-    window.requestAnimationFrame(step);
-  }, [end, duration]);
-
-  const displayCount = end >= 1000 ? count.toLocaleString() : count;
-  return <span className="tabular-nums">{displayCount}{suffix}</span>;
-};
 
 const ImpactStats = () => {
   return (
@@ -246,34 +223,9 @@ const ImpactStats = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3"></div>
 
-          <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-4 text-center">
-            <div className="flex flex-col items-center gap-2">
-              <div className="text-4xl md:text-5xl font-extrabold tracking-tight">
-                <Counter end={40000} suffix="+" />
-              </div>
-              <div className="text-teal-100 font-medium text-lg">Animals Rescued</div>
-            </div>
-            
-            <div className="flex flex-col items-center gap-2">
-              <div className="text-4xl md:text-5xl font-extrabold tracking-tight">
-                <Counter end={150} suffix="+" />
-              </div>
-              <div className="text-teal-100 font-medium text-lg">Verified NGOs</div>
-            </div>
-
-            <div className="flex flex-col items-center gap-2">
-              <div className="text-4xl md:text-5xl font-extrabold tracking-tight">
-                ₹<Counter end={2.4} suffix="Cr+" duration={2500} />
-              </div>
-              <div className="text-teal-100 font-medium text-lg">Donations Raised</div>
-            </div>
-
-            <div className="flex flex-col items-center gap-2">
-              <div className="text-4xl md:text-5xl font-extrabold tracking-tight">
-                <Counter end={5000} suffix="+" />
-              </div>
-              <div className="text-teal-100 font-medium text-lg">Active Volunteers</div>
-            </div>
+          <div className="relative z-10 text-center max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Every rescue starts with someone who stopped</h2>
+            <p className="text-teal-100 text-lg leading-relaxed">We do not publish platform-wide totals here, because the backend has no public statistics endpoint and inventing numbers would mislead the people this platform exists to help. Your own impact — cases reported, pledges received, campaigns funded, volunteer hours — is shown honestly on your dashboard once you sign in.</p>
           </div>
         </motion.div>
       </div>
@@ -285,11 +237,11 @@ const WaysToHelp = () => {
   const ways = [
     {
       title: "Report Emergency",
-      desc: "Instantly alert nearby NGOs about an animal in critical condition.",
+      desc: "Create a case a verified NGO can accept, with photos and location.",
       icon: <Siren className="w-6 h-6" />,
       color: "bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-950/20 dark:border-rose-900/50",
       accent: "bg-rose-500",
-      link: "/emergency"
+      link: "/nearby-ngos"
     },
     {
       title: "Volunteer Time",
@@ -329,7 +281,7 @@ const WaysToHelp = () => {
       icon: <MapPin className="w-6 h-6" />,
       color: "bg-teal-50 text-teal-600 border-teal-100 dark:bg-teal-950/20 dark:border-teal-900/50",
       accent: "bg-teal-500",
-      link: "/ngos"
+      link: "/nearby-ngos"
     }
   ];
 
@@ -375,77 +327,21 @@ const WaysToHelp = () => {
 };
 
 const FeaturedNGOs = () => {
-  // Use mockNGOs or fallback
-  const ngos = (mockNGOs && mockNGOs.length > 0) ? mockNGOs.filter(n => n.verified).slice(0, 6) : [
-    { id: 1, name: "Happy Tails Shelter", city: "Mumbai", verified: true, stats: { animalsHelped: 1200 }, services: ["Rescue", "Adoption"] },
-    { id: 2, name: "Paws & Claws", city: "Delhi", verified: true, stats: { animalsHelped: 3400 }, services: ["Medical", "Shelter"] },
-    { id: 3, name: "Hope for Strays", city: "Bangalore", verified: true, stats: { animalsHelped: 850 }, services: ["Rescue", "Foster"] },
-    { id: 4, name: "Furry Friends Foundation", city: "Pune", verified: true, stats: { animalsHelped: 2100 }, services: ["Adoption", "Medical"] },
-  ];
-
+  // Honest replacement for the old mock-NGO carousel: the frontend has no
+  // public verified-NGO list endpoint (GET /ngo/verified requires sign-in),
+  // so the homepage does not name organisations or invent rescue counts.
+  // It points to Nearby Help, the one public discovery feature, and
+  // explains its verified/external split.
   return (
     <section id="ngos" className="py-24 overflow-hidden">
       <div className="container mx-auto px-4 md:px-6">
-        <div className="flex items-end justify-between mb-12">
-          <div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Featured NGOs</h2>
-            <p className="text-muted-foreground text-lg max-w-xl">Support our trusted partners who are working tirelessly on the ground.</p>
-          </div>
-          <Link to="/ngos" className="hidden md:flex items-center gap-2 text-primary font-medium hover:underline">
-            View All <ChevronRight className="w-4 h-4" />
+        <div className="max-w-2xl">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Find help near you</h2>
+          <p className="text-muted-foreground text-lg mb-8">Nearby Help shows two clearly separated groups: <strong className="text-foreground">verified</strong> NGOs and veterinary professionals approved by Animal Lifeline, and <strong className="text-foreground">not-registered</strong> external clinics, shelters and organisations found through OpenStreetMap. External listings are never presented as verified, and they cannot accept rescues through Animal Lifeline.</p>
+          <Link to="/nearby-ngos" className="inline-flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-full font-medium hover:bg-primary/90 transition-colors">
+            Open Nearby Help <ArrowRight className="w-5 h-5" />
           </Link>
-        </div>
-
-        <div className="flex overflow-x-auto pb-8 -mx-4 px-4 snap-x snap-mandatory hide-scrollbar gap-6">
-          {ngos.map((ngo, index) => (
-            <motion.div 
-              key={ngo.id || index}
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="min-w-[320px] md:min-w-[380px] bg-card border border-border rounded-2xl p-6 snap-center shadow-sm hover:shadow-md transition-shadow flex flex-col group"
-            >
-              <div className="flex justify-between items-start mb-5">
-                <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-2xl group-hover:scale-110 transition-transform">
-                  {ngo.name.charAt(0)}
-                </div>
-                {ngo.verified && (
-                  <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-semibold border border-emerald-100">
-                    <CheckCircle2 className="w-4 h-4" /> Verified
-                  </div>
-                )}
-              </div>
-              
-              <h3 className="text-xl font-bold mb-2 text-foreground line-clamp-1">{ngo.name}</h3>
-              <div className="flex items-center gap-1.5 text-muted-foreground text-sm mb-5">
-                <MapPin className="w-4 h-4 text-primary/70" /> {ngo.city}
-              </div>
-              
-              <div className="flex flex-wrap gap-2 mb-8 mt-auto">
-                {ngo.services?.slice(0,3).map((service, i) => (
-                  <span key={i} className="bg-muted text-muted-foreground text-xs px-3 py-1.5 rounded-md font-medium">
-                    {service}
-                  </span>
-                ))}
-              </div>
-              
-              <div className="pt-5 border-t border-border flex items-center justify-between">
-                <div className="text-sm font-medium text-foreground">
-                  <span className="text-primary font-bold text-base">{ngo.stats?.animalsHelped?.toLocaleString() || '1,000+'}</span> helped
-                </div>
-                <Link to={`/ngos/${ngo.id}`} className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors">
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-        
-        <div className="mt-4 md:hidden flex justify-center">
-          <Link to="/ngos" className="flex items-center gap-2 text-primary font-medium bg-primary/10 px-6 py-3 rounded-full">
-            View All NGOs <ChevronRight className="w-4 h-4" />
-          </Link>
+          <p className="text-sm text-muted-foreground mt-4">No sign-in needed. Distances are shown where coordinates are available; where they are not, the listing says so instead of guessing.</p>
         </div>
       </div>
     </section>
@@ -527,11 +423,11 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-bold mb-6 text-lg">Quick Links</h4>
             <ul className="space-y-4">
-              <li><Link to="/about" className="hover:text-teal-400 transition-colors flex items-center gap-2"><ChevronRight className="w-4 h-4 opacity-50" /> About Us</Link></li>
-              <li><Link to="/ngos" className="hover:text-teal-400 transition-colors flex items-center gap-2"><ChevronRight className="w-4 h-4 opacity-50" /> Find NGOs</Link></li>
+              <li><span className="text-slate-400 flex items-center gap-2"><ChevronRight className="w-4 h-4 opacity-50" /> About Animal Lifeline — see the homepage</span></li>
+              <li><Link to="/nearby-ngos" className="hover:text-teal-400 transition-colors flex items-center gap-2"><ChevronRight className="w-4 h-4 opacity-50" /> Find NGOs</Link></li>
               <li><Link to="/volunteer" className="hover:text-teal-400 transition-colors flex items-center gap-2"><ChevronRight className="w-4 h-4 opacity-50" /> Volunteer</Link></li>
               <li><Link to="/donate" className="hover:text-teal-400 transition-colors flex items-center gap-2"><ChevronRight className="w-4 h-4 opacity-50" /> Donate</Link></li>
-              <li><Link to="/contact" className="hover:text-teal-400 transition-colors flex items-center gap-2"><ChevronRight className="w-4 h-4 opacity-50" /> Contact</Link></li>
+              <li><span className="text-slate-400 flex items-center gap-2"><ChevronRight className="w-4 h-4 opacity-50" /> Contact — via the NGO or vet listed on Nearby Help</span></li>
             </ul>
           </div>
           
@@ -563,8 +459,8 @@ const Footer = () => {
         <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500 font-medium">
           <p>© {new Date().getFullYear()} Animal Lifeline. All rights reserved.</p>
           <div className="flex gap-8">
-            <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+            <span className="text-slate-400">Privacy Policy — not published yet</span>
+            <span className="text-slate-400">Terms of Service — not published yet</span>
           </div>
         </div>
       </div>

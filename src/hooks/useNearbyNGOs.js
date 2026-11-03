@@ -1,24 +1,43 @@
 import { useState, useEffect, useCallback } from 'react'
 import API from '@/api/axios'
-import { mockNGOs } from '@/data/mockNGOs'
 
 /**
- * Fetches nearby verified NGOs from the real backend.
- * Backend endpoint: GET /api/v1/ngo/nearby?lat=X&lng=Y
+ * Nearby Help — public endpoint, same for logged-out and logged-in users.
+ * Backend: GET /api/v1/nearby/help?lng=X&lat=Y&radiusKm=N
+ * (default radius 25 km, capped at 100 km by the backend).
  *
- * Falls back to filtered mock data when the backend is unreachable.
+ * Response data shape (backend, HEAD 80378a9, OSM enhancement):
+ *   verified:    registered verified NGOs + approved vets, sorted by distance
+ *   nonVerified: external OSM listings, sorted by distance, distance-less last
+ *   ngos, vets:  legacy arrays (unchanged shape, extra fields added)
+ *   attribution: OSM ODbL attribution string
+ *   osmStatus:   "available" | "unavailable" (external results failed, registered only)
+ *
+ * Verified entries carry source "animal_lifeline" and
+ * registrationStatus "Verified on Animal Lifeline". External entries carry
+ * source "openstreetmap" and "Not registered on Animal Lifeline" and must
+ * never be presented as verified, never linked to a platform profile, and
+ * never offered rescue-accept actions. When coordinates are missing,
+ * distanceKm is null and distanceLabel is "Distance unavailable" — the
+ * distance is never invented.
+ *
+ * No mock fallback: if the backend is unreachable the hook reports an
+ * error and empty lists, instead of showing invented organisations.
  *
  * @param {[number, number] | null} center - [latitude, longitude] array
- * @param {object} filters - filter object from Redux ngo slice
- * @returns {{ ngos, loading, error }}
+ * @param {number} radiusKm - search radius in km
+ * @returns {{ verified, nonVerified, loading, error, attribution, osmStatus, total }}
  */
-export function useNearbyNGOs(center, filters = {}) {
-  const [ngos, setNgos] = useState([])
+export function useNearbyNGOs(center, radiusKm = 25) {
+  const [verified, setVerified] = useState([])
+  const [nonVerified, setNonVerified] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [attribution, setAttribution] = useState('')
+  const [osmStatus, setOsmStatus] = useState('unavailable')
+  const [total, setTotal] = useState(0)
 
   const fetchNearby = useCallback(async () => {
-    // Wait until we have valid coordinates
     if (
       !center ||
       !Array.isArray(center) ||
@@ -26,101 +45,41 @@ export function useNearbyNGOs(center, filters = {}) {
       !isFinite(center[0]) ||
       !isFinite(center[1])
     ) {
+      setVerified([])
+      setNonVerified([])
       return
     }
 
     const [lat, lng] = center
-
     setLoading(true)
     setError(null)
 
     try {
-      // Backend expects: GET /api/v1/ngo/nearby?lat=X&lng=Y
-      const response = await API.get('/ngo/nearby', {
-        params: { lat, lng },
+      const response = await API.get('/nearby/help', {
+        params: { lat, lng, radiusKm },
       })
-
-      // Backend response shape: { statusCode, data: [...], message }
-      const data = response.data?.data || []
-
-      // Map backend field names to frontend shape
-      const mapped = data.map((ngo) => ({
-        id: ngo._id,
-        name: ngo.organizationName,
-        city: ngo.address?.city || '',
-        state: ngo.address?.state || '',
-        description: ngo.description || '',
-        animalsHandled: ngo.animalsHandled || [],
-        services: ngo.servicesProvided || [],
-        verificationStatus: ngo.verificationStatus,
-        isVerified: ngo.verificationStatus === 'verified',
-        contact: {
-          phone: ngo.user?.phone || '',
-          email: ngo.user?.email || '',
-        },
-        // Coordinates from GeoJSON: [lng, lat]
-        coordinates: {
-          lat: ngo.location?.coordinates?.[1],
-          lng: ngo.location?.coordinates?.[0],
-        },
-        _raw: ngo,
-      }))
-
-      // Apply client-side filters (search query, animal type, services)
-      const filtered = mapped.filter((ngo) => {
-        if (filters.searchQuery) {
-          const q = filters.searchQuery.toLowerCase()
-          if (
-            !ngo.name.toLowerCase().includes(q) &&
-            !ngo.city.toLowerCase().includes(q) &&
-            !ngo.description.toLowerCase().includes(q)
-          ) return false
-        }
-        if (filters.animalType?.length > 0) {
-          if (!filters.animalType.some((t) => ngo.animalsHandled.includes(t))) return false
-        }
-        if (filters.services?.length > 0) {
-          if (!filters.services.some((s) => ngo.services.includes(s))) return false
-        }
-        return true
-      })
-
-      setNgos(filtered)
+      const data = response.data?.data || {}
+      setVerified(Array.isArray(data.verified) ? data.verified : [])
+      setNonVerified(Array.isArray(data.nonVerified) ? data.nonVerified : [])
+      setAttribution(data.attribution || '')
+      setOsmStatus(data.osmStatus || 'unavailable')
+      setTotal(
+        typeof data.total === 'number'
+          ? data.total
+          : (data.verified?.length || 0) + (data.nonVerified?.length || 0)
+      )
     } catch (err) {
-      // Network error → fall back to mock NGO data filtered by verificationStatus
-      const isNetworkError = !err.response
-      if (isNetworkError) {
-        const fallback = mockNGOs
-          .filter((n) => n.verificationStatus === 'approved' || n.isVerified)
-          .filter((ngo) => {
-            if (filters.searchQuery) {
-              const q = filters.searchQuery.toLowerCase()
-              if (
-                !ngo.name.toLowerCase().includes(q) &&
-                !(ngo.city || '').toLowerCase().includes(q)
-              ) return false
-            }
-            if (filters.animalType?.length > 0) {
-              if (!filters.animalType.some((t) => (ngo.animalsHandled || []).includes(t)))
-                return false
-            }
-            if (filters.services?.length > 0) {
-              if (!filters.services.some((s) => (ngo.services || []).includes(s))) return false
-            }
-            return true
-          })
-        setNgos(fallback)
-      } else {
-        setError(err?.message || 'Failed to load nearby NGOs')
-      }
+      setVerified([])
+      setNonVerified([])
+      setError(err?.message || 'Failed to load nearby help')
     } finally {
       setLoading(false)
     }
-  }, [center?.[0], center?.[1], filters.searchQuery, filters.animalType?.join(','), filters.services?.join(',')])
+  }, [center?.[0], center?.[1], radiusKm])
 
   useEffect(() => {
     fetchNearby()
   }, [fetchNearby])
 
-  return { ngos, loading, error }
+  return { verified, nonVerified, loading, error, attribution, osmStatus, total }
 }

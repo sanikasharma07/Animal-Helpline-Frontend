@@ -22,7 +22,7 @@ export default function NGOOnboarding() {
   const [isSuccess, setIsSuccess] = useState(false);
   
   const [formData, setFormData] = useState({
-    name: '', type: '', regNumber: '', regDate: '', address: '', city: '', state: '', phone: '', email: '', website: '',
+    name: '', type: '', regNumber: '', regDate: '', address: '', city: '', state: '', phone: '', email: '', website: '', lng: '', lat: '',
     operatingCities: [], animalsHandled: [], servicesProvided: [],
     documents: {}
   });
@@ -52,13 +52,17 @@ export default function NGOOnboarding() {
     const backendPayload = {
       organizationName: formData.name,
       registrationNumber: formData.regNumber,
-      description: formData.description || `${formData.name} — verified animal welfare NGO serving ${formData.city}, ${formData.state}.`,
+      description: formData.description || `${formData.name} — animal welfare NGO serving ${formData.city}, ${formData.state}.`,
       street: formData.address || formData.street || '',
       city: formData.city,
       state: formData.state,
       pinCode: formData.pinCode || '',
       animalsHandled: formData.animalsHandled,
       servicesProvided: formData.servicesProvided,
+      // Coordinates are optional and both-together, per the backend: they
+      // are what makes this NGO appear in Nearby Help. They pass through
+      // submitNgoProfile as plain text fields.
+      ...(formData.lng !== '' && formData.lat !== '' ? { lng: formData.lng, lat: formData.lat } : {}),
       documents: formData.documents, // File objects keyed by multer field name
     };
 
@@ -88,7 +92,7 @@ export default function NGOOnboarding() {
             <CheckCircle2 className="w-10 h-10" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Application Submitted!</h2>
-          <p className="text-slate-600 mb-6">Your NGO application has been received. Our team will review your documents and get back to you within 48 hours.</p>
+          <p className="text-slate-600 mb-6">Your NGO profile has been submitted and is pending admin review. It will appear in Nearby Help and accept emergencies only once an admin verifies it.</p>
           <div className="animate-pulse flex justify-center space-x-2">
             <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
             <div className="w-2 h-2 bg-teal-500 rounded-full delay-75"></div>
@@ -182,6 +186,15 @@ export default function NGOOnboarding() {
                           {MAJOR_CITIES?.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Longitude (optional)</label>
+                        <input type="number" step="any" min="-180" max="180" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={formData.lng} onChange={e => setFormData({...formData, lng: e.target.value})} placeholder="e.g. 75.8648" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Latitude (optional)</label>
+                        <input type="number" step="any" min="-90" max="90" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={formData.lat} onChange={e => setFormData({...formData, lat: e.target.value})} placeholder="e.g. 25.2138" />
+                      </div>
+                      <p className="col-span-2 text-xs text-slate-500">Both coordinates together, or neither. They are what makes your NGO appear in Nearby Help; without them, people nearby cannot find you on the map. Updating your profile later resets verification to pending.</p>
                     </div>
                   </div>
                 )}

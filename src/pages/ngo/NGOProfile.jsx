@@ -1,142 +1,154 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { Building, MapPin, Check, Shield, Camera, Save } from 'lucide-react';
-import { mockNGOs } from '@/data/mockNGOs';
-import { NGO_SERVICES, ANIMAL_TYPES } from '@/lib/constants';
+import React, { useState, useEffect } from 'react'
+import API from '@/api/axios'
+import { Building, MapPin, Save, AlertTriangle, Shield } from 'lucide-react'
 
+// Real own profile: GET /ngo/profile. Editing uses the same combined
+// endpoint as onboarding (POST /ngo/profile): documents not re-uploaded
+// are kept, location is only overwritten when coordinates are sent, and
+// — importantly — any update resets verificationStatus to pending for
+// admin re-review. The old page showed the first invented NGO and its
+// Save button did nothing at all.
 export default function NGOProfile() {
-  const ngo = mockNGOs[0];
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    description: ngo.description || '',
-    phone: ngo.contactNumber || '',
-    email: ngo.email || '',
-    website: ngo.website || '',
-    address: ngo.address || '',
-  });
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [formData, setFormData] = useState({ description: '', city: '', state: '', lng: '', lat: '' })
+  const [saveError, setSaveError] = useState('')
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // In real app, dispatch to redux/api
-  };
+  const fetchProfile = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await API.get('/ngo/profile')
+      const p = res.data?.data || null
+      setProfile(p)
+      if (p) {
+        setFormData({
+          description: p.description || '',
+          city: p.address?.city || '',
+          state: p.address?.state || '',
+          lng: p.location?.coordinates?.[0] ?? '',
+          lat: p.location?.coordinates?.[1] ?? '',
+        })
+      }
+    } catch (err) {
+      setError(err?.message || 'Could not load your NGO profile.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchProfile() }, [])
+
+  const handleSave = async () => {
+    setSaveError('')
+    setSaving(true)
+    try {
+      const form = new FormData()
+      form.append('organizationName', profile.organizationName)
+      form.append('registrationNumber', profile.registrationNumber)
+      form.append('description', formData.description)
+      form.append('street', profile.address?.street || '')
+      form.append('city', formData.city)
+      form.append('state', formData.state)
+      form.append('pinCode', profile.address?.pinCode || '')
+      form.append('animalsHandled', (profile.animalsHandled || []).join(','))
+      form.append('servicesProvided', (profile.servicesProvided || []).join(','))
+      if (formData.lng !== '' && formData.lat !== '') {
+        form.append('lng', formData.lng)
+        form.append('lat', formData.lat)
+      }
+      await API.post('/ngo/profile', form)
+      setSaveSuccess(true)
+      setIsEditing(false)
+      fetchProfile()
+    } catch (err) {
+      setSaveError(err?.message || 'Profile could not be saved.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <div className="flex justify-center p-12"><div className="animate-spin w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full" role="status" aria-label="Loading profile" /></div>
+  if (error) return <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-2xl p-4 flex gap-2"><AlertTriangle className="w-5 h-5 shrink-0" />{error}</div>
+  if (!profile) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-4">
+        <h1 className="text-2xl font-bold text-slate-900">Organization Profile</h1>
+        <p className="text-sm text-slate-600 bg-white border rounded-2xl p-5">You have no NGO profile yet. Create one from the onboarding page — it is what lets verified NGOs accept emergencies, publish campaigns and post opportunities.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900">Organization Profile</h1>
-        <button 
-          onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors",
-            isEditing ? "bg-teal-600 hover:bg-teal-700 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-          )}
-        >
-          {isEditing ? <><Save className="w-4 h-4" /> Save Changes</> : 'Edit Profile'}
+        <h1 className="text-2xl font-bold text-[#183B35]">Organization Profile</h1>
+        <button onClick={() => isEditing ? handleSave() : setIsEditing(true)} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-[#087F70] hover:bg-[#183B35] text-white disabled:opacity-50">
+          <Save className="w-4 h-4" /> {isEditing ? (saving ? 'Saving…' : 'Save Changes') : 'Edit Profile'}
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        {/* Cover & Avatar */}
-        <div className="h-48 bg-gradient-to-r from-teal-500 to-emerald-600 relative">
-          <button className="absolute bottom-4 right-4 bg-black/30 hover:bg-black/50 text-white p-2 rounded-lg backdrop-blur-sm transition-all text-sm flex items-center gap-2">
-            <Camera className="w-4 h-4" /> Change Cover
-          </button>
+      {saveSuccess && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-2xl p-4">Saved. Your verification status is now pending again, because the backend resets it on every profile update for admin re-review.</div>}
+      {saveError && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-2xl p-4">{saveError}</div>}
+      {isEditing && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-2xl p-4">
+          Saving this form resets your verification to pending, even if you only changed the description. Documents you do not re-upload here are kept.
         </div>
-        
-        <div className="px-8 pb-8 relative">
-          <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-16 mb-6">
-            <div className="w-32 h-32 rounded-2xl border-4 border-white shadow-lg bg-white overflow-hidden relative bg-slate-100 flex items-center justify-center shrink-0">
-              {ngo.logo ? (
-                <img src={ngo.logo} alt={ngo.name} className="w-full h-full object-cover" />
-              ) : (
-                <Building className="w-12 h-12 text-slate-300" />
-              )}
-              <button className="absolute inset-0 bg-black/40 text-white opacity-0 hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-xs font-medium">
-                <Camera className="w-6 h-6 mb-1" /> Update
-              </button>
-            </div>
-            
-            <div className="pb-2">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                {ngo.name}
-                {ngo.isVerified && <Shield className="w-5 h-5 text-teal-500" />}
-              </h2>
-              <p className="text-slate-500 flex items-center gap-1.5 mt-1">
-                <MapPin className="w-4 h-4" /> {ngo.city}, {ngo.state}
-              </p>
+      )}
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 space-y-4">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-[#DDE9DF] flex items-center justify-center text-[#087F70] shrink-0"><Building className="w-7 h-7" /></div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">{profile.organizationName}</h2>
+              <p className="text-sm text-slate-500 flex items-center gap-1"><Shield className="w-4 h-4 text-[#087F70]" /> Verification: {profile.verificationStatus}</p>
+              <p className="text-sm text-slate-500">Registration: {profile.registrationNumber}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">About Organization</label>
-                {isEditing ? (
-                  <textarea 
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none min-h-[120px]"
-                    value={formData.description}
-                    onChange={e => setFormData({...formData, description: e.target.value})}
-                  />
-                ) : (
-                  <p className="text-slate-600 text-sm leading-relaxed">{formData.description || 'No description provided.'}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">Contact Information</label>
-                <div className="space-y-3">
-                  {['phone', 'email', 'website', 'address'].map(field => (
-                    <div key={field} className="flex gap-2">
-                      <span className="text-sm font-medium text-slate-500 w-20 capitalize">{field}:</span>
-                      {isEditing ? (
-                        <input 
-                          type="text" 
-                          className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none"
-                          value={formData[field]}
-                          onChange={e => setFormData({...formData, [field]: e.target.value})}
-                        />
-                      ) : (
-                        <span className="text-sm text-slate-900">{formData[field] || '-'}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+          {isEditing ? (
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-700">Description
+                <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={4} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-xs font-bold text-slate-700">City
+                  <input value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
+                </label>
+                <label className="block text-xs font-bold text-slate-700">State
+                  <input value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
+                </label>
+                <label className="block text-xs font-bold text-slate-700">Longitude (optional, both coordinates together)
+                  <input value={formData.lng} onChange={(e) => setFormData({ ...formData, lng: e.target.value })} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
+                </label>
+                <label className="block text-xs font-bold text-slate-700">Latitude
+                  <input value={formData.lat} onChange={(e) => setFormData({ ...formData, lat: e.target.value })} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
+                </label>
               </div>
             </div>
-
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-3">Services Provided</label>
-                <div className="flex flex-wrap gap-2">
-                  {ngo.services.map(serviceId => {
-                    const service = NGO_SERVICES?.find(s => s.id === serviceId);
-                    return service ? (
-                      <span key={serviceId} className="px-3 py-1.5 bg-teal-50 text-teal-700 text-sm font-medium rounded-lg flex items-center gap-1.5 border border-teal-100">
-                        {service.emoji} {service.label}
-                      </span>
-                    ) : null;
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-3">Animals Handled</label>
-                <div className="flex flex-wrap gap-2">
-                  {ngo.animalsHandled.map(animalId => {
-                    const animal = ANIMAL_TYPES?.find(a => a.id === animalId);
-                    return animal ? (
-                      <span key={animalId} className="px-3 py-1.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg flex items-center gap-1.5 border border-slate-200">
-                        {animal.emoji} {animal.label}
-                      </span>
-                    ) : null;
-                  })}
-                </div>
-              </div>
+          ) : (
+            <div className="space-y-2 text-sm text-slate-600">
+              <p>{profile.description}</p>
+              <p className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {[profile.address?.street, profile.address?.city, profile.address?.state, profile.address?.pinCode].filter(Boolean).join(', ') || 'No address on file'}</p>
+              {profile.location?.coordinates && <p>Coordinates: {profile.location.coordinates[1]}, {profile.location.coordinates[0]} (used for Nearby Help)</p>}
             </div>
+          )}
+
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 mb-2">Animals handled</h3>
+            <div className="flex flex-wrap gap-1.5">{(profile.animalsHandled || []).map((a) => <span key={a} className="text-xs px-2 py-1 bg-slate-100 rounded-full">{a}</span>)}</div>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 mb-2">Services provided</h3>
+            <div className="flex flex-wrap gap-1.5">{(profile.servicesProvided || []).map((s) => <span key={s} className="text-xs px-2 py-1 bg-slate-100 rounded-full">{s}</span>)}</div>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -23,24 +23,17 @@ import {
   X,
   Lock,
 } from 'lucide-react'
-import { mockCampaigns } from '@/data/mockCampaigns'
+import { useSelector } from 'react-redux'
+import AuthRequiredState from '@/components/common/AuthRequiredState'
 
-const ANIMAL_PHOTOS = {
-  dog: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&auto=format&fit=crop&q=80',
-  cat: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&auto=format&fit=crop&q=80',
-  bird: 'https://images.unsplash.com/photo-1522926193341-e9ffd686c60f?w=600&auto=format&fit=crop&q=80',
-  cattle: 'https://images.unsplash.com/photo-1596733430284-f7437764b1a9?w=600&auto=format&fit=crop&q=80',
-  default: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=600&auto=format&fit=crop&q=80',
-}
+// Campaigns have no cover photo in the backend — only impact photos uploaded
+// after fundraising (campaign.impact.photos). So cards show a real impact
+// photo when one exists, and otherwise a neutral typographic panel. A
+// stock animal photo would imply a specific animal this campaign is for,
+// which the data does not say.
 
-const TABS = ['All', 'Medical Fund', 'Surgery', 'Sterilization', 'Critical Only']
+const TABS = ['All', 'Medical Fund', 'Surgery', 'Sterilization', 'Least funded']
 
-const PLATFORM_STATS = [
-  { label: 'Total Raised', value: '₹2.42 Cr', icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  { label: 'Active Campaigns', value: '342', icon: Zap, color: 'text-teal-600', bg: 'bg-teal-50' },
-  { label: 'Donors', value: '18,290', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-  { label: 'Success Rate', value: '98.2%', icon: Star, color: 'text-amber-500', bg: 'bg-amber-50' },
-]
 
 export default function DonatePage() {
   const [activeTab, setActiveTab] = useState('All')
@@ -48,16 +41,27 @@ export default function DonatePage() {
   const [customAmount, setCustomAmount] = useState('500')
   const [donationSuccess, setDonationSuccess] = useState(false)
 
-  // Live campaigns from backend — falls back to mockCampaigns
-  const [allCampaigns, setAllCampaigns] = useState(mockCampaigns.filter((c) => c.type === 'donation'))
+  const { isAuthenticated } = useSelector((state) => state.auth)
+  // Live campaigns from the backend only. The list endpoint requires
+  // authentication (GET /donations/campaigns is verifyJWT), so a logged-out
+  // visitor sees a sign-in prompt instead of invented campaigns.
+  const [allCampaigns, setAllCampaigns] = useState([])
   const [campaignsLoading, setCampaignsLoading] = useState(false)
+  const [campaignsError, setCampaignsError] = useState('')
+  const [donationError, setDonationError] = useState('')
+  const [donationProcessing, setDonationProcessing] = useState(false)
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setAllCampaigns([])
+      setCampaignsLoading(false)
+      return
+    }
     let cancelled = false
     const fetchCampaigns = async () => {
       setCampaignsLoading(true)
+      setCampaignsError('')
       try {
-        // GET /api/v1/donations/campaigns (requires auth token)
         const res = await API.get('/donations/campaigns')
         if (!cancelled && res.data?.data) {
           const mapped = res.data.data.map((c) => ({
@@ -70,21 +74,19 @@ export default function DonatePage() {
             raisedAmount: c.raisedAmount || 0,
             donorsCount: c.donors?.length || 0,
             status: c.status === 'Active' ? 'active' : 'completed',
-            severity: c.raisedAmount / (c.targetAmount || 1) < 0.5 ? 'critical' : 'normal',
-            animalType: 'default',
-            animalName: '',
           }))
           setAllCampaigns(mapped)
         }
-      } catch {
-        // Network error — keep mockCampaigns (already set as initial state)
+      } catch (err) {
+        if (!cancelled) setCampaignsError(err?.message || 'Could not load campaigns.')
       } finally {
         if (!cancelled) setCampaignsLoading(false)
       }
     }
     fetchCampaigns()
     return () => { cancelled = true }
-  }, [])
+  }, [isAuthenticated])
+
 
   // Donation campaigns filtered by status
   const donationCampaigns = allCampaigns
@@ -106,9 +108,11 @@ export default function DonatePage() {
       const text = `${campaign.title} ${campaign.description}`.toLowerCase()
       return text.includes('sterilization') || text.includes('neutering')
     }
-    if (activeTab === 'Critical Only') {
+    if (activeTab === 'Least funded') {
+      // Campaigns have no urgency/severity field in the backend; this tab
+      // is simply the least-funded half, labelled as such.
       const percent = (campaign.raisedAmount / (campaign.targetAmount || 1)) * 100
-      return campaign.severity === 'critical' || percent < 50
+      return percent < 50
     }
     return true
   })
@@ -119,26 +123,80 @@ export default function DonatePage() {
   }
 
 
+  // Real donation flow, matching the backend exactly:
+  // 1. POST /donations/campaigns/:id/donate creates a Razorpay order and
+  //    returns { order, campaignId, keyId }.
+  // 2. Razorpay Checkout collects the payment in the browser.
+  // 3. On payment, POST /donations/campaigns/:id/verify with the
+  //    razorpay_order_id / payment_id / signature verifies the signature
+  //    and records the donation. Only a successful verify shows success.
+  // Previously this page showed success even when the API call failed and
+  // even though no payment had been taken at all.
   const handleProcessDonation = async (e) => {
     e.preventDefault()
     const amount = Number(customAmount)
-    if (!amount || amount < 51) return
-
-    try {
-      if (selectedQuickDonate?.id && !selectedQuickDonate.id.startsWith('mock-')) {
-        // Real backend call: POST /api/v1/donations/campaigns/:id/donate
-        await API.post(`/donations/campaigns/${selectedQuickDonate.id}/donate`, { amount })
-      }
-    } catch {
-      // Ignore — backend might not have payment integration yet; show success UI anyway
+    if (!amount || amount < 51) {
+      setDonationError('Donation amount must be at least ₹51 (the backend requires more than ₹50).')
+      return
     }
-
-    setDonationSuccess(true)
-    setTimeout(() => {
-      setSelectedQuickDonate(null)
-      setDonationSuccess(false)
-    }, 2500)
+    if (!selectedQuickDonate?.id) return
+    setDonationError('')
+    setDonationProcessing(true)
+    try {
+      const res = await API.post(`/donations/campaigns/${selectedQuickDonate.id}/donate`, { amount })
+      const { order, keyId } = res.data?.data || {}
+      if (!order?.id || !keyId) {
+        throw new Error('The backend did not return a payment order. No payment was taken.')
+      }
+      if (typeof window !== 'undefined' && !window.Razorpay) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+          script.onload = resolve
+          script.onerror = () => reject(new Error('Could not load the Razorpay payment window.'))
+          document.body.appendChild(script)
+        })
+      }
+      await new Promise((resolve, reject) => {
+        const rzp = new window.Razorpay({
+          key: keyId,
+          amount: order.amount,
+          currency: order.currency || 'INR',
+          name: 'Animal Lifeline',
+          description: selectedQuickDonate.title,
+          order_id: order.id,
+          handler: async (response) => {
+            try {
+              await API.post(`/donations/campaigns/${selectedQuickDonate.id}/verify`, {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              })
+              setDonationSuccess(true)
+              setTimeout(() => {
+                setSelectedQuickDonate(null)
+                setDonationSuccess(false)
+              }, 3500)
+              resolve()
+            } catch (verifyErr) {
+              reject(new Error(`Payment was taken, but recording it failed: ${verifyErr?.message || 'verification failed'}. Please keep your payment ID (${response.razorpay_payment_id}) and contact the NGO.`))
+            }
+          },
+          modal: { ondismiss: () => reject(new Error('Payment was cancelled. No donation was recorded.')) },
+          theme: { color: '#087F70' },
+        })
+        rzp.on('payment.failed', (resp) => {
+          reject(new Error(resp?.error?.description || 'Payment failed. No donation was recorded.'))
+        })
+        rzp.open()
+      })
+    } catch (err) {
+      setDonationError(err?.message || 'Donation could not be completed.')
+    } finally {
+      setDonationProcessing(false)
+    }
   }
+
 
 
   return (
@@ -163,7 +221,7 @@ export default function DonatePage() {
             </Link>
             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
               <Shield className="w-3.5 h-3.5 text-emerald-600" />
-              80G Tax Exempt
+              Verified NGOs only
             </div>
           </div>
         </div>
@@ -203,7 +261,7 @@ export default function DonatePage() {
             transition={{ delay: 0.2 }}
             className="text-base sm:text-lg text-emerald-50 font-medium max-w-2xl mx-auto leading-relaxed"
           >
-            Direct financial support for critical veterinary surgeries, trauma rescues, and post-operative recovery. Every rupee is tracked with verified receipts.
+            Direct financial support for veterinary care and rescue work by verified NGOs. A payment is only recorded after Razorpay verifies it.
           </motion.p>
 
           {/* 3 Pill Stats */}
@@ -215,15 +273,15 @@ export default function DonatePage() {
           >
             <div className="flex items-center gap-2 bg-white/15 backdrop-blur-md border border-white/25 px-4 py-2 rounded-full shadow-md text-xs sm:text-sm font-bold text-white">
               <TrendingUp className="w-4 h-4 text-emerald-200" />
-              <span>₹2.4 Cr+ Raised</span>
+              <span>Verified NGOs only</span>
             </div>
             <div className="flex items-center gap-2 bg-white/15 backdrop-blur-md border border-white/25 px-4 py-2 rounded-full shadow-md text-xs sm:text-sm font-bold text-white">
               <Heart className="w-4 h-4 text-rose-300 fill-current" />
-              <span>40K+ Animals Helped</span>
+              <span>Razorpay-secured payments</span>
             </div>
             <div className="flex items-center gap-2 bg-white/15 backdrop-blur-md border border-white/25 px-4 py-2 rounded-full shadow-md text-xs sm:text-sm font-bold text-white">
               <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-              <span>100% Direct to NGO</span>
+              <span>Verified before recording</span>
             </div>
           </motion.div>
         </div>
@@ -231,27 +289,32 @@ export default function DonatePage() {
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 md:px-6 -mt-8 relative z-20 space-y-8">
-        {/* Platform Stats Bar (bg-white, grid-cols-2 sm:grid-cols-4) */}
-        <section className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
-            {PLATFORM_STATS.map((stat, idx) => {
-              const Icon = stat.icon
-              return (
-                <div key={stat.label} className={cn('p-2 text-center flex flex-col items-center justify-center', idx > 1 && 'pt-4 sm:pt-2')}>
-                  <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-1.5', stat.bg)}>
-                    <Icon className={cn('w-5 h-5', stat.color)} />
-                  </div>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                    {stat.value}
-                  </div>
-                  <div className="text-xs font-semibold text-slate-500 mt-0.5">
-                    {stat.label}
-                  </div>
+        {!isAuthenticated && (
+          <AuthRequiredState title="Sign in to see active campaigns" message="Campaigns are listed for signed-in users, because the backend requires authentication for the campaign list. Nearby Help on the home page works without signing in." />
+        )}
+        {isAuthenticated && (
+          <section className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+              {[
+                { label: 'Raised across listed campaigns', value: formatCurrency(allCampaigns.reduce((sum, c) => sum + (c.raisedAmount || 0), 0)) },
+                { label: 'Active campaigns listed', value: String(allCampaigns.length) },
+                { label: 'Target across listed campaigns', value: formatCurrency(allCampaigns.reduce((sum, c) => sum + (c.targetAmount || 0), 0)) },
+              ].map((stat) => (
+                <div key={stat.label} className="p-2 text-center">
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{stat.value}</div>
+                  <div className="text-xs font-semibold text-slate-500 mt-0.5">{stat.label}</div>
                 </div>
-              )
-            })}
-          </div>
-        </section>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400 text-center mt-3">Totals are computed from the campaigns listed on this page only; the backend has no platform-wide totals endpoint.</p>
+          </section>
+        )}
+        {campaignsError && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-2xl p-4">{campaignsError}</div>
+        )}
+        {campaignsLoading && (
+          <div className="flex justify-center p-8"><div className="animate-spin w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full" role="status" aria-label="Loading campaigns" /></div>
+        )}
 
         {/* Filter Tabs (horizontal, border-b): All | Medical Fund | Surgery | Sterilization | Critical Only */}
         <section className="space-y-4">
@@ -297,11 +360,10 @@ export default function DonatePage() {
         <section className="space-y-4">
           <AnimatePresence mode="popLayout">
             {filteredCampaigns.map((campaign, index) => {
-              const photo = ANIMAL_PHOTOS[campaign.animalType] || ANIMAL_PHOTOS.default
+              const photo = campaign.impact?.photos?.[0] || null
               const target = campaign.targetAmount || 10000
               const raised = campaign.raisedAmount || 0
               const percent = Math.min(100, Math.round((raised / target) * 100))
-              const isCritical = campaign.severity === 'critical' || percent < 50
 
               return (
                 <motion.div
@@ -315,12 +377,20 @@ export default function DonatePage() {
                 >
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-5">
                     {/* Top / Left: Animal Photo with Status Badge */}
-                    <div className="md:col-span-4 relative h-48 md:h-full min-h-[190px] overflow-hidden bg-slate-100">
-                      <img
-                        src={photo}
-                        alt={campaign.animalName || campaign.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
+                    <div className="md:col-span-4 relative h-48 md:h-full min-h-[190px] overflow-hidden bg-[#DDE9DF]">
+                      {photo ? (
+                        <img
+                          src={photo}
+                          alt={`Impact photo for ${campaign.title}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 text-center">
+                          <span className="text-4xl">🐾</span>
+                          <span className="text-xs font-bold text-[#183B35] uppercase tracking-wider">Fundraising campaign</span>
+                          <span className="text-xs text-slate-500">No campaign photo uploaded yet</span>
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent md:hidden" />
 
                       {/* Overlay badge: campaign status (Active=green, Completed=teal) */}
@@ -329,18 +399,8 @@ export default function DonatePage() {
                           <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                           Active
                         </span>
-                        {isCritical && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-rose-600 text-white shadow-md">
-                            Critical Need
-                          </span>
-                        )}
                       </div>
 
-                      {campaign.animalType && (
-                        <div className="absolute bottom-3 left-3 md:hidden text-white font-bold text-xs uppercase tracking-wider bg-black/40 backdrop-blur-xs px-2.5 py-0.5 rounded-md">
-                          {campaign.animalType}
-                        </div>
-                      )}
                     </div>
 
                     {/* Content Area */}
@@ -358,7 +418,7 @@ export default function DonatePage() {
                           </div>
 
                           <span className="text-[11px] font-bold text-slate-500 capitalize">
-                            {campaign.animalName ? `${campaign.animalName} • ` : ''}{campaign.animalType || 'Rescue'}
+                            {campaign.status}
                           </span>
                         </div>
 
@@ -434,7 +494,7 @@ export default function DonatePage() {
           {filteredCampaigns.length === 0 && (
             <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center space-y-3">
               <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
-              <p className="font-bold text-slate-800">No campaigns match this category right now</p>
+              <p className="font-bold text-slate-800">{!isAuthenticated ? 'Sign in to see active campaigns' : 'No campaigns match this category right now'}</p>
               <button
                 type="button"
                 onClick={() => setActiveTab('All')}
@@ -446,94 +506,6 @@ export default function DonatePage() {
           )}
         </section>
 
-        {/* Completed Campaigns Section: Filter mockCampaigns.filter(c => c.status === 'completed') */}
-        <section className="space-y-4 pt-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                Recently Funded & Completed
-                <span className="text-xs font-bold bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full">
-                  {completedCampaigns.length} Success Stories
-                </span>
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Every mission below was 100% funded and rescued. Review hospital bills, receipts, and recovery updates.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {completedCampaigns.map((campaign, idx) => {
-              const photo = ANIMAL_PHOTOS[campaign.animalType] || ANIMAL_PHOTOS.default
-              const target = campaign.targetAmount || 10000
-              const raised = campaign.raisedAmount || target
-
-              return (
-                <motion.div
-                  key={campaign.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.08 }}
-                  className="bg-slate-100/80 rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs hover:shadow-sm transition-all"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-5">
-                    {/* Animal Photo with Completed Badge */}
-                    <div className="md:col-span-4 relative h-44 md:h-full min-h-[170px] overflow-hidden bg-slate-200">
-                      <img
-                        src={photo}
-                        alt={campaign.animalName || campaign.title}
-                        className="w-full h-full object-cover grayscale-[30%] opacity-90"
-                      />
-                      {/* Mission Complete Badge */}
-                      <div className="absolute top-3 left-3">
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-600 text-white shadow-md">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-teal-200" />
-                          Mission Complete ✓
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Details (Muted, links to ImpactVisualizer view via /campaign/:id) */}
-                    <div className="md:col-span-8 p-5 md:py-5 md:pr-6 md:pl-0 flex flex-col justify-between space-y-3">
-                      <div>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5">
-                          <span className="font-bold text-slate-700">{campaign.ngoName}</span>
-                          <span>•</span>
-                          <span className="text-emerald-700 font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> All Bills Verified
-                          </span>
-                        </div>
-
-                        <h3 className="font-bold text-base sm:text-lg text-slate-800">
-                          {campaign.title}
-                        </h3>
-                        <p className="text-xs sm:text-sm text-slate-500 line-clamp-2 mt-1 leading-relaxed">
-                          {campaign.description}
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="text-xs text-slate-600">
-                          <span className="font-bold text-slate-900">{formatCurrency(raised)}</span> fully funded by{' '}
-                          <strong className="text-slate-800">{campaign.donorsCount || 0} donors</strong>
-                        </div>
-
-                        <Link
-                          to={`/campaign/${campaign.id}`}
-                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-teal-50 border border-slate-300 hover:border-teal-400 text-teal-700 text-xs font-bold transition-all shadow-2xs shrink-0"
-                        >
-                          <span>View Transparency & Impact</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </section>
-
         {/* Trust Bar (bottom): bg-emerald-50 border-emerald-200 */}
         <section className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 shadow-xs">
           <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
@@ -542,10 +514,10 @@ export default function DonatePage() {
             </div>
             <div className="space-y-1">
               <p className="text-sm sm:text-base font-bold text-emerald-950">
-                🔒 Secured & Verified: Every donation goes directly to the NGO. Admin-verified receipts. Tax-deductible under 80G.
+                Secured & verified: payments go through Razorpay and are verified by the backend before they are recorded against a campaign.
               </p>
               <p className="text-xs text-emerald-800/80">
-                100% of your funds cover veterinary diagnosis, operations, hospitalization, and feed. Zero platform cut from direct NGO payouts.
+                Campaigns on this page are published by verified NGOs. Impact updates are posted by the NGO on the campaign page.
               </p>
             </div>
           </div>
@@ -577,7 +549,7 @@ export default function DonatePage() {
                   </div>
                   <h3 className="text-2xl font-black text-slate-900">Thank You! 💚</h3>
                   <p className="text-sm text-slate-600 max-w-xs mx-auto">
-                    Your contribution of ₹{Number(customAmount).toLocaleString('en-IN')} for {selectedQuickDonate.title} has been received. Receipt emailed to you.
+                    Your contribution of ₹{Number(customAmount).toLocaleString('en-IN')} for {selectedQuickDonate.title} has been verified and recorded.
                   </p>
                 </div>
               ) : (
@@ -642,19 +614,23 @@ export default function DonatePage() {
                   {/* Tax exemption note */}
                   <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-xs text-emerald-800 space-y-0.5">
                     <p className="font-bold flex items-center gap-1">
-                      <Shield className="w-3.5 h-3.5" /> 80G Tax Deductible
+                      <Shield className="w-3.5 h-3.5" /> Verified before recording
                     </p>
                     <p className="text-[11px] text-emerald-700">
-                      Eligible for 50% tax deduction under Section 80G of Indian IT Act.
+                      Razorpay collects the payment and the backend verifies its signature before the donation is recorded. No tax-deduction claim is made here.
                     </p>
                   </div>
+                  {donationError && (
+                    <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl p-3">{donationError}</div>
+                  )}
 
                   <button
                     type="submit"
-                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                    disabled={donationProcessing}
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     <Heart className="w-4 h-4 fill-current" />
-                    Complete Donation of ₹{Number(customAmount || 0).toLocaleString('en-IN')}
+                    {donationProcessing ? 'Opening secure payment…' : `Complete Donation of ₹${Number(customAmount || 0).toLocaleString('en-IN')}`}
                   </button>
 
                   <div className="text-center">

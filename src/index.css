@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -55,7 +55,21 @@
   --color-slate-950: #020617;
 
   --font-sans: 'Geist Variable', sans-serif;
-  --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  /* Animal Lifeline identity (2026-11-03 transformation): editorial
+     Fraunces headings + clean Geist body. Palette: warm ivory #F7F5EF
+     (primary backgrounds), sage #DDE9DF (secondary surfaces), teal
+     #087F70 (trust, navigation, important actions), forest #183B35
+     (headings, dark surfaces), soft coral #E7A18A (emergency emphasis
+     and highlights). Coral is too light for text or buttons, so
+     --color-coral-dark #C96A4A is the usable shade derived from it;
+     pages already using it directly keep working. */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --color-ivory: #F7F5EF;
+  --color-sage: #DDE9DF;
+  --color-brand-teal: #087F70;
+  --color-forest: #183B35;
+  --color-coral: #E7A18A;
+  --color-coral-dark: #C96A4A;
 
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -509,5 +523,31 @@ body {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ── Animal Lifeline identity: global behaviour (Phase 6) ─────────────── */
+html, body {
+  overflow-x: hidden;
+}
+body {
+  background-color: #F7F5EF;
+}
+/* Visible keyboard focus everywhere, including on the ivory background. */
+:focus-visible {
+  outline: 3px solid #087F70;
+  outline-offset: 2px;
+}
+/* Touch targets: interactive elements in transformed pages already use
+   py-2.5/py-3; this floor keeps small legacy controls tappable. */
+button, a {
+  min-height: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

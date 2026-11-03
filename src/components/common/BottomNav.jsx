@@ -17,6 +17,14 @@ export default function BottomNav() {
   const hiddenPaths = ['/ngo/dashboard', '/admin']
   if (hiddenPaths.some((p) => location.pathname.startsWith(p))) return null
 
+  // The old nav always linked Home to /dashboard, which is user-only:
+  // NGO and vet users were bounced by ProtectedRoute.
+  const homePath =
+    user?.role === 'ngo' ? '/ngo/dashboard'
+    : user?.role === 'admin' ? '/admin'
+    : user?.role === 'vet' ? '/vet/dashboard'
+    : '/dashboard'
+
   const isActive = (path) => location.pathname === path
 
   return (
@@ -25,13 +33,13 @@ export default function BottomNav() {
 
         {/* Home */}
         <Link
-          to="/dashboard"
+          to={homePath}
           className={cn(
             'flex flex-col items-center gap-0.5 min-w-[48px] px-2 py-1.5 rounded-xl transition-all',
-            isActive('/dashboard') ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'
+            isActive(homePath) ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'
           )}
         >
-          <LayoutDashboard className={cn('w-5 h-5', isActive('/dashboard') && 'stroke-[2.5px]')} />
+          <LayoutDashboard className={cn('w-5 h-5', isActive(homePath) && 'stroke-[2.5px]')} />
           <span className="text-[9px] font-bold leading-tight">Home</span>
         </Link>
 

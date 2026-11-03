@@ -1,188 +1,125 @@
-import React from 'react'
-import { motion } from 'framer-motion'
-import { cn, formatCurrency } from '@/lib/utils'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { useDispatch, useSelector } from 'react-redux'
 import { openSOSModal } from '@/store/slices/emergencySlice'
 import EmergencySOSModal from '@/components/emergency/EmergencySOSModal'
-import {
-  Bell,
-  Siren,
-  Heart,
-  Package,
-  Home,
-  Users,
-  TrendingUp,
-  MapPin,
-  PawPrint,
-  ChevronRight,
-  Sparkles,
-  ShieldCheck,
-  CheckCircle2,
-} from 'lucide-react'
-import { mockCampaigns } from '@/data/mockCampaigns'
+import API from '@/api/axios'
+import NotificationsPanel from '@/components/common/NotificationsPanel'
+import { Siren, Heart, Package, Home, Users, MapPin, ShieldCheck, AlertTriangle } from 'lucide-react'
 
+// Personal dashboard, real only:
+//   GET /users/impact-profile → { lifetimeStats: { rescuesReported,
+//     suppliesDonated, campaignsFunded, volunteerHours }, timeline[] }
+//   GET /emergency/my → the caller's own emergency cases.
+// The old page showed an invented city total ("1,248 rescued, +18 today"),
+// a generated avatar photo for the user, a permanently lit notification
+// dot, and a feed of invented campaigns. All four are removed.
 export default function UserDashboard() {
   const dispatch = useDispatch()
   const { user } = useSelector((state) => state.auth)
+  const [impact, setImpact] = useState(null)
+  const [timeline, setTimeline] = useState([])
+  const [myCases, setMyCases] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    const fetchAll = async () => {
+      setLoading(true)
+      try {
+        const [impactRes, casesRes] = await Promise.all([
+          API.get('/users/impact-profile'),
+          API.get('/emergency/my'),
+        ])
+        if (!cancelled) {
+          setImpact(impactRes.data?.data?.lifetimeStats || null)
+          setTimeline(impactRes.data?.data?.timeline || [])
+          setMyCases(casesRes.data?.data || [])
+        }
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'Could not load your dashboard.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchAll()
+    return () => { cancelled = true }
+  }, [])
+
+  const initials = (user?.name || 'A').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 
   const quickActions = [
-    {
-      title: 'Adopt / Foster',
-      desc: 'Give a rescued animal a loving temporary or forever home.',
-      icon: Home,
-      accent: 'text-teal-600 bg-teal-50 border-teal-200',
-      link: '/foster',
-    },
-    {
-      title: 'Volunteer',
-      desc: 'Join local rescue teams & shelter care shifts near you.',
-      icon: Users,
-      accent: 'text-teal-600 bg-teal-50 border-teal-200',
-      link: '/volunteer',
-    },
-    {
-      title: 'Donate Supplies',
-      desc: 'Send food, medicines, blankets & critical shelter gear.',
-      icon: Package,
-      accent: 'text-teal-600 bg-teal-50 border-teal-200',
-      link: '/supplies',
-    },
-    {
-      title: 'Fund a Rescue',
-      desc: 'Sponsor life-saving surgeries & veterinary treatments.',
-      icon: Heart,
-      accent: 'text-teal-600 bg-teal-50 border-teal-200',
-      link: '/donate',
-    },
+    { title: 'Adopt / Foster', desc: 'Give a rescued animal a loving temporary or forever home.', icon: Home, link: '/foster' },
+    { title: 'Volunteer', desc: 'Join open opportunities posted by verified NGOs.', icon: Users, link: '/volunteer' },
+    { title: 'Donate Supplies', desc: 'Pledge food, medicines and accessories shelters need.', icon: Package, link: '/supplies' },
+    { title: 'Fund a Rescue', desc: 'Support campaigns by verified NGOs, verified by Razorpay.', icon: Heart, link: '/donate' },
   ]
 
-  // Filter active support hub feed campaigns
-  const activeFeedItems = mockCampaigns.slice(0, 5)
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans pb-24 md:pb-12">
-      {/* Sticky Header Bar */}
-      <header className="bg-white sticky top-0 z-30 border-b border-slate-200 shadow-sm px-4 sm:px-6 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F7F5EF] flex flex-col pb-24 md:pb-12">
+      <header className="bg-white sticky top-0 z-30 border-b border-[#DDE9DF] px-4 sm:px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold overflow-hidden border border-teal-200 shrink-0">
-            <img
-              src={`https://i.pravatar.cc/100?u=${user?._id || user?.id || 'demo'}`}
-              alt={user?.name || 'User'}
-            />
-          </div>
+          <div className="w-10 h-10 rounded-full bg-[#087F70] flex items-center justify-center text-white font-bold shrink-0" aria-hidden="true">{initials}</div>
           <div>
-            <h1 className="font-bold text-slate-900 leading-tight text-base sm:text-lg">
-              Hi, {user?.name || 'Animal Savior'} 👋
-            </h1>
-            <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
-              Verified Animal Lifeline Community
-            </p>
+            <h1 className="font-bold text-[#183B35] leading-tight text-base sm:text-lg">Hi, {user?.name || 'friend'}</h1>
+            <p className="text-xs text-slate-500 font-medium flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-[#087F70]" /> Animal Lifeline community</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="relative p-2.5 text-slate-600 hover:bg-slate-100 rounded-full transition-colors border border-slate-200"
-          >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white" />
-          </button>
-        </div>
+        <Link to="/nearby-ngos" className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-[#087F70] bg-[#DDE9DF] px-3.5 py-2 rounded-xl hover:bg-teal-100 transition-colors shrink-0">
+          <MapPin className="w-4 h-4" /> Nearby Help
+        </Link>
       </header>
 
-      {/* Main Content Area */}
       <main className="max-w-4xl mx-auto w-full p-4 sm:p-6 space-y-6 flex flex-col">
-        {/* Quick Impact Stats */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 flex items-center justify-between border border-slate-200/80 shadow-sm gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-teal-50 text-teal-600 shrink-0">
-              <TrendingUp className="w-6 h-6" />
+        {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-2xl p-4 flex gap-2"><AlertTriangle className="w-5 h-5 shrink-0" />{error}</div>}
+
+        {/* Impact — bento row, real counters only */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3" aria-label="Your impact">
+          {[
+            ['Emergencies reported', impact?.rescuesReported ?? '—'],
+            ['Supply pledges received', impact?.suppliesDonated ?? '—'],
+            ['Campaigns funded', impact?.campaignsFunded ?? '—'],
+            ['Volunteer hours', impact?.volunteerHours ?? '—'],
+          ].map(([label, value]) => (
+            <div key={label} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+              <p className="text-2xl font-black text-[#183B35]">{loading ? '…' : value}</p>
+              <p className="text-xs font-semibold text-slate-500 mt-0.5">{label}</p>
             </div>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900">1,248</span>
-                <span className="text-xs font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                  +18 Today
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 font-medium">Animals rescued & treated in your city</p>
-            </div>
-          </div>
+          ))}
+        </section>
+        <p className="text-xs text-slate-400 -mt-3">Counts come from your own activity: emergencies you reported, pledges an NGO marked Received, campaigns you funded, and hours from completed volunteer work.</p>
 
-          <Link
-            to="/nearby-ngos"
-            className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-teal-600 bg-teal-50 px-3.5 py-2 rounded-xl border border-teal-100 hover:bg-teal-100 transition-colors shrink-0"
-          >
-            <MapPin className="w-4 h-4" /> Nearby NGOs
-          </Link>
-        </div>
-
-        {/* HERO SECTION: Centralized Pulsing Rose-500 SOS Button */}
-        <section className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-rose-900/5 border border-rose-100 flex flex-col items-center justify-center text-center gap-6 relative overflow-hidden">
-          {/* Decorative Glow */}
-          <div className="absolute -top-16 -right-16 w-48 h-48 bg-rose-100 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-teal-100 rounded-full blur-3xl pointer-events-none" />
-
+        {/* Emergency reporting — honest copy */}
+        <section className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-[#E7A18A]/60 flex flex-col items-center justify-center text-center gap-6 relative overflow-hidden">
+          <div className="absolute -top-16 -right-16 w-48 h-48 bg-[#E7A18A]/20 rounded-full blur-3xl pointer-events-none" />
           <div className="space-y-2 max-w-lg z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-rose-100 text-rose-800 rounded-full text-xs font-black uppercase tracking-wider">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
-              </span>
-              Instant Emergency Dispatch
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              See an Animal in Danger?
-            </h2>
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#183B35]">See an animal in danger?</h2>
             <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-              Broadcast an immediate emergency SOS alert. Verified NGOs, local volunteers, and nearby rescue teams respond in real-time.
+              Report it with its location and, if you can, a photo. Reporting creates a case that a verified NGO can accept — it does not dispatch anyone automatically, and no NGO is notified until it picks up the case.
             </p>
           </div>
-
-          {/* MASSIVE PULSING ROSE-500 HERO BUTTON */}
           <button
             type="button"
             onClick={() => dispatch(openSOSModal())}
-            className="w-full max-w-md py-5 sm:py-6 px-8 bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-black text-xl sm:text-2xl rounded-2xl shadow-xl shadow-rose-500/40 flex items-center justify-center gap-3.5 transition-all animate-pulse-soft border-2 border-rose-400 z-10 cursor-pointer"
+            className="w-full max-w-md py-5 px-8 bg-[#C96A4A] hover:bg-[#183B35] active:scale-95 text-white font-black text-xl rounded-2xl shadow-lg flex items-center justify-center gap-3 transition-all z-10 cursor-pointer"
           >
-            <Siren className="w-8 h-8 shrink-0 animate-bounce" />
-            <span>🚨 Report Emergency Now</span>
+            <Siren className="w-7 h-7 shrink-0" />
+            <span>Report Emergency</span>
           </button>
         </section>
 
-        {/* QUICK ACTIONS: 2x2 Grid */}
         <section className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-lg font-bold text-slate-900">How do you want to help?</h3>
-            <span className="text-xs font-semibold text-slate-400">4 Core Actions</span>
-          </div>
-
+          <h3 className="text-lg font-bold text-[#183B35] px-1">How do you want to help?</h3>
           <div className="grid grid-cols-2 gap-4">
             {quickActions.map((action) => {
               const Icon = action.icon
               return (
-                <Link
-                  key={action.title}
-                  to={action.link}
-                  className="bg-white hover:bg-teal-50/60 border border-slate-200 p-5 rounded-xl shadow-md hover:scale-105 transition-all flex flex-col justify-between gap-3 text-left group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className={cn('p-3 rounded-xl border', action.accent)}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-teal-600 group-hover:translate-x-1 transition-all" />
-                  </div>
-
+                <Link key={action.title} to={action.link} className="bg-white hover:bg-[#DDE9DF]/60 border border-slate-200 p-5 rounded-xl shadow-sm hover:shadow transition-all flex flex-col gap-3 text-left group">
+                  <div className="p-3 rounded-xl bg-[#DDE9DF] text-[#087F70] self-start"><Icon className="w-6 h-6" /></div>
                   <div>
-                    <h4 className="font-bold text-slate-900 text-base mb-1 group-hover:text-teal-700 transition-colors">
-                      {action.title}
-                    </h4>
-                    <p className="text-xs text-slate-500 font-medium line-clamp-2 leading-relaxed">
-                      {action.desc}
-                    </p>
+                    <h4 className="font-bold text-[#183B35] text-base mb-1">{action.title}</h4>
+                    <p className="text-xs text-slate-500 font-medium line-clamp-2 leading-relaxed">{action.desc}</p>
                   </div>
                 </Link>
               )
@@ -190,92 +127,44 @@ export default function UserDashboard() {
           </div>
         </section>
 
-        {/* SUPPORT HUB (FEED): Supply Requests & Active Campaigns */}
-        <section className="space-y-4 pt-2">
+        <section className="space-y-3">
           <div className="flex items-center justify-between px-1">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">Support Hub Feed</h3>
-              <p className="text-xs text-slate-500">Active medical cases & supply requests near you</p>
+            <h3 className="text-lg font-bold text-[#183B35]">My emergency cases</h3>
+            <Link to="/nearby-ngos" className="text-xs font-bold text-[#087F70] hover:underline">Nearby Help</Link>
+          </div>
+          {myCases.length === 0 ? (
+            <p className="text-sm text-slate-500 bg-white border rounded-2xl p-5">You have not reported an emergency yet. When you do, its status and updates appear here.</p>
+          ) : (
+            <div className="space-y-2">
+              {myCases.map((c) => (
+                <Link key={c._id} to={`/tracker/${c._id}`} className="bg-white border rounded-xl px-4 py-3 flex flex-wrap justify-between gap-2 hover:border-teal-300">
+                  <span className="text-sm font-semibold text-slate-800">{c.animalInfo?.species || 'Animal'} — {c.animalInfo?.quickDescription || c.quickDescription || 'Emergency case'}</span>
+                  <span className="text-xs font-bold px-2 py-1 rounded-full bg-[#DDE9DF] text-[#183B35]">{c.status}</span>
+                </Link>
+              ))}
             </div>
-            <Link to="/nearby-ngos" className="text-xs font-bold text-teal-600 hover:underline">
-              Explore All
-            </Link>
-          </div>
+          )}
+        </section>
 
-          <div className="flex flex-col gap-4">
-            {activeFeedItems.map((item) => {
-              const isDonation = item.type === 'donation'
-              const percent = isDonation
-                ? Math.min(100, Math.round((item.raisedAmount / item.targetAmount) * 100))
-                : Math.min(100, Math.round((item.fulfilledQuantity / item.targetQuantity) * 100))
+        <NotificationsPanel />
 
-              return (
-                <div
-                  key={item.id}
-                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col gap-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            'text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border',
-                            isDonation
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-blue-50 text-blue-700 border-blue-200'
-                          )}
-                        >
-                          {isDonation ? 'Medical Rescue Fund' : 'Supply Request'}
-                        </span>
-                        <span className="text-xs text-slate-400">• {item.ngoName}</span>
-                      </div>
-                      <h4 className="font-bold text-slate-900 text-base sm:text-lg">{item.title}</h4>
-                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                        {item.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* THICK TEAL-500 PROGRESS BAR */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-xs font-bold">
-                      <span className="text-slate-700">
-                        {isDonation
-                          ? `${formatCurrency(item.raisedAmount)} raised of ${formatCurrency(item.targetAmount)}`
-                          : `${item.fulfilledQuantity} ${item.unit || 'units'} collected of ${item.targetQuantity} ${item.unit || 'units'}`}
-                      </span>
-                      <span className="text-teal-600 font-extrabold">{percent}%</span>
-                    </div>
-
-                    <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-200/60 flex">
-                      <div
-                        className="bg-teal-500 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-                      <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                      <span>100% Directly Verified NGO</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition-all shadow-md hover:shadow-teal-600/20 active:scale-95"
-                    >
-                      {isDonation ? 'Contribute Fund' : 'Provide Supplies'}
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        <section className="space-y-3">
+          <h3 className="text-lg font-bold text-[#183B35] px-1">My activity</h3>
+          {timeline.length === 0 ? (
+            <p className="text-sm text-slate-500 bg-white border rounded-2xl p-5">No activity yet — your reports, received pledges and donations will be listed here as they happen.</p>
+          ) : (
+            <ul className="space-y-2">
+              {timeline.slice(0, 10).map((t, i) => (
+                <li key={i} className="bg-white border rounded-xl px-4 py-3 flex flex-wrap justify-between gap-2 text-sm">
+                  <span className="font-semibold text-slate-800">{t.title}</span>
+                  <span className="text-xs text-slate-500">{t.ngoName}{t.date ? ` • ${new Date(t.date).toLocaleDateString()}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
 
-      {/* Global Emergency SOS Modal */}
       <EmergencySOSModal />
     </div>
   )

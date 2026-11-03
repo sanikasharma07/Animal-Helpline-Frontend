@@ -1,7 +1,9 @@
 import { useSelector, useDispatch } from 'react-redux'
-import { loginUser, logoutUser, setUser } from '@/store/slices/authSlice'
-import { mockUsers } from '@/data/mockUsers'
+import { loginUser, logoutUser } from '@/store/slices/authSlice'
 
+// Roles come only from the authenticated backend user. The old
+// switchRole helper (which signed the user in as a mock account of any
+// role) has been removed: it bypassed authentication entirely.
 export function useAuth() {
   const dispatch = useDispatch()
   const { user, isAuthenticated, isLoading, error } = useSelector((state) => state.auth)
@@ -14,16 +16,6 @@ export function useAuth() {
     return dispatch(logoutUser())
   }
 
-  const handleSwitchRole = (role) => {
-    const mockUser = mockUsers.find((u) => u.role === role) || {
-      _id: 'mock-id',
-      name: `Mock ${role.toUpperCase()}`,
-      email: `${role}@example.com`,
-      role: role,
-    }
-    dispatch(setUser(mockUser))
-  }
-
   return {
     user,
     isAuthenticated,
@@ -32,9 +24,9 @@ export function useAuth() {
     role: user?.role || null,
     isUser: user?.role === 'user',
     isNGO: user?.role === 'ngo',
+    isVet: user?.role === 'vet',
     isAdmin: user?.role === 'admin',
     login: handleLogin,
     logout: handleLogout,
-    switchRole: handleSwitchRole,
   }
 }

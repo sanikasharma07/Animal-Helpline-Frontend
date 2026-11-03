@@ -1,35 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import API from '@/api/axios'
-import { mockUsers } from '@/data/mockUsers'
 
-// ── Mock credentials for demo ──────────────────────────────────────────────
-// Any email from mockUsers + any password → logs in as that user.
-// Unknown email + any password → logs in as the default "user" role.
-// Special shortcuts:
-//   admin@animallifeline.org  → admin role
-//   rajesh@helpingpaws.org    → ngo role
-//   (anything else)           → user role
-const MOCK_TOKEN = 'mock-jwt-token-animal-lifeline-dev'
-
-function mockLogin(email) {
-  const found = mockUsers.find((u) => u.email === email)
-  const user = found || mockUsers[0] // fallback to Sanika (user role)
-  return { user, accessToken: MOCK_TOKEN }
-}
-
-function mockRegister(formData) {
-  const newUser = {
-    id: `user-${Date.now()}`,
-    name: formData.name,
-    email: formData.email,
-    phone: formData.phone,
-    role: 'user',
-    city: 'India',
-    joinedAt: new Date().toISOString(),
-    stats: { emergenciesReported: 0, donationsMade: 0, volunteerActivities: 0 },
-  }
-  return { user: newUser, accessToken: MOCK_TOKEN }
-}
+// Authentication is real only: login and registration call the backend
+// (POST /users/login, POST /users/register). There is deliberately no
+// mock or demo login — a failed request surfaces its error instead of
+// signing the user in as a fake account.
 
 // ===== Async Thunks =====
 
@@ -49,16 +24,7 @@ export const registerUser = createAsyncThunk(
       localStorage.setItem('al_user', JSON.stringify(user))
       return { user, accessToken }
     } catch (error) {
-      // ── Mock fallback: backend not running ─────────────────────────────
-      const isNetworkError =
-        !error.response || error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED'
-      if (isNetworkError) {
-        const { user, accessToken } = mockRegister(formData)
-        localStorage.setItem('al_access_token', accessToken)
-        localStorage.setItem('al_user', JSON.stringify(user))
-        return { user, accessToken }
-      }
-      return rejectWithValue(error?.response?.data?.message || error.message)
+      return rejectWithValue(error?.message || 'Registration failed. Please check your connection and try again.')
     }
   }
 )
@@ -77,16 +43,7 @@ export const loginUser = createAsyncThunk(
       localStorage.setItem('al_user', JSON.stringify(user))
       return { user, accessToken }
     } catch (error) {
-      // ── Mock fallback: backend not running ─────────────────────────────
-      const isNetworkError =
-        !error.response || error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED'
-      if (isNetworkError) {
-        const { user, accessToken } = mockLogin(credentials.email)
-        localStorage.setItem('al_access_token', accessToken)
-        localStorage.setItem('al_user', JSON.stringify(user))
-        return { user, accessToken }
-      }
-      return rejectWithValue(error?.response?.data?.message || error.message)
+      return rejectWithValue(error?.message || 'Login failed. Please check your credentials and try again.')
     }
   }
 )

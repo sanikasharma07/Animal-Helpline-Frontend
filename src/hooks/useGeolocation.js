@@ -5,11 +5,13 @@ export function useGeolocation() {
   const [error, setError] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  // No silent fallback location: silently substituting one city's
+  // coordinates for the user's real location would send rescuers and
+  // nearby results to the wrong place. On failure the caller must let
+  // the user enter a location manually.
   const requestLocation = () => {
     if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser')
-      // Fallback to Kota, Rajasthan
-      setLocation({ lat: 25.2138, lng: 75.8648 })
+      setError('Geolocation is not supported by your browser. Please enter your location manually.')
       return
     }
 
@@ -23,9 +25,7 @@ export function useGeolocation() {
         setIsLoading(false)
       },
       (err) => {
-        setError(err.message)
-        // Fallback to Kota, Rajasthan
-        setLocation({ lat: 25.2138, lng: 75.8648 })
+        setError(`${err.message}. Please enter your location manually instead.`)
         setIsLoading(false)
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
