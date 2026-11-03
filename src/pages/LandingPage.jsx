@@ -21,9 +21,9 @@ const Navbar = () => {
   return (
     <header className={cn(
       'fixed top-0 w-full z-50 transition-all duration-300 border-b border-transparent',
-      scrolled ? 'glass py-3 shadow-sm border-white/10 backdrop-blur-md bg-white/70 dark:bg-slate-900/70' : 'bg-transparent py-5'
+      scrolled ? 'glass py-4 shadow-sm border-white/10 backdrop-blur-md bg-white/70' : 'bg-transparent py-4'
     )}>
-      <div className="container mx-auto px-4 md:px-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-primary font-bold text-xl">
             <PawPrint className="w-8 h-8" />
@@ -52,7 +52,7 @@ const Navbar = () => {
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="md:hidden absolute top-full left-0 w-full glass bg-white/95 dark:bg-slate-900/95 border-b py-4 px-4 flex flex-col gap-4 shadow-lg"
+          className="md:hidden absolute top-full left-0 w-full glass bg-white/95 border-b py-4 px-4 flex flex-col gap-4 shadow-lg"
         >
           <a href="#how-it-works" className="font-medium text-foreground/80 p-2 hover:bg-muted rounded-md" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
           <a href="#impact" className="font-medium text-foreground/80 p-2 hover:bg-muted rounded-md" onClick={() => setMobileMenuOpen(false)}>Impact</a>
@@ -72,7 +72,7 @@ const Hero = () => {
     <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-slate-900 text-white gradient-hero">
       <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=2069&auto=format&fit=crop')] opacity-10 bg-cover bg-center mix-blend-overlay"></div>
       
-      <div className="container mx-auto px-4 md:px-6 relative z-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
           <motion.div 
             initial={{ opacity: 0, x: -30 }}
@@ -170,7 +170,7 @@ const HowItWorks = () => {
 
   return (
     <section id="how-it-works" className="py-24 bg-background">
-      <div className="container mx-auto px-4 md:px-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">How Animal Lifeline Works</h2>
           <p className="text-muted-foreground text-lg">Three simple steps to save a life. Reporting is the first step — a verified NGO accepting the case is what starts a rescue.</p>
@@ -210,8 +210,8 @@ const HowItWorks = () => {
 
 const ImpactStats = () => {
   return (
-    <section id="impact" className="py-20">
-      <div className="container mx-auto px-4 md:px-6">
+    <section id="impact" className="py-24">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -287,7 +287,7 @@ const WaysToHelp = () => {
 
   return (
     <section className="py-24 bg-muted/30">
-      <div className="container mx-auto px-4 md:px-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">6 Ways You Can Help</h2>
           <p className="text-muted-foreground text-lg max-w-2xl">Every action counts. Choose how you want to make a difference in an animal's life today.</p>
@@ -334,7 +334,7 @@ const FeaturedNGOs = () => {
   // explains its verified/external split.
   return (
     <section id="ngos" className="py-24 overflow-hidden">
-      <div className="container mx-auto px-4 md:px-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="max-w-2xl">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Find help near you</h2>
           <p className="text-muted-foreground text-lg mb-8">Nearby Help shows two clearly separated groups: <strong className="text-foreground">verified</strong> NGOs and veterinary professionals approved by Animal Lifeline, and <strong className="text-foreground">not-registered</strong> external clinics, shelters and organisations found through OpenStreetMap. External listings are never presented as verified, and they cannot accept rescues through Animal Lifeline.</p>
@@ -351,7 +351,7 @@ const FeaturedNGOs = () => {
 const CTASection = () => {
   return (
     <section className="py-24 bg-background">
-      <div className="container mx-auto px-4 md:px-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <motion.div 
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -402,7 +402,7 @@ const CTASection = () => {
 const Footer = () => {
   return (
     <footer className="bg-slate-950 text-slate-300 py-16 border-t border-slate-800">
-      <div className="container mx-auto px-4 md:px-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 text-teal-400 font-bold text-2xl mb-6">

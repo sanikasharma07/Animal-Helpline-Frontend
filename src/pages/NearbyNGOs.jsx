@@ -85,7 +85,7 @@ function ResourceCard({ entry, isActive, onSelect, center }) {
           </p>
         </div>
         <span className={cn(
-          "shrink-0 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full font-semibold",
+          "shrink-0 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold",
           isVerified ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-800"
         )}>
           {isVerified ? <><BadgeCheck size={12} /> Verified</> : <><AlertTriangle size={12} /> Not registered</>}
@@ -104,7 +104,7 @@ function ResourceCard({ entry, isActive, onSelect, center }) {
       {Array.isArray(entry.services) && entry.services.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-3">
           {entry.services.slice(0, 4).map((service, i) => (
-            <span key={i} className="text-[10px] px-2 py-1 bg-gray-100 text-slate-600 rounded-full font-medium">{service}</span>
+            <span key={i} className="text-xs px-2 py-1 bg-gray-100 text-slate-600 rounded-full font-medium">{service}</span>
           ))}
         </div>
       )}
@@ -201,9 +201,9 @@ export default function NearbyNGOs() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F7F5EF] pt-16">
+    <div className="flex flex-col min-h-screen bg-[#F7F5EF]">
       {isMobile && (
-        <div className="flex p-4 bg-white border-b sticky top-16 z-20 shadow-sm">
+        <div className="flex p-4 bg-white border-b sticky top-0 z-20 shadow-sm">
           <div className="flex w-full bg-gray-100 p-1 rounded-lg">
             <button onClick={() => setViewMode('list')} className={cn("flex-1 py-2 flex items-center justify-center gap-2 rounded-md transition-colors text-sm font-medium", viewMode === 'list' ? "bg-white shadow text-teal-700" : "text-slate-600")}>
               <List size={16} /> List View
@@ -332,7 +332,7 @@ export default function NearbyNGOs() {
                     )}
                   </section>
                 )}
-                {attribution && <p className="text-[11px] text-slate-400">{attribution}</p>}
+                {attribution && <p className="text-xs text-slate-400">{attribution}</p>}
               </>
             )}
           </div>

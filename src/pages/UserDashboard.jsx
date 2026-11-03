@@ -57,8 +57,9 @@ export default function UserDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#F7F5EF] flex flex-col pb-24 md:pb-12">
-      <header className="bg-white sticky top-0 z-30 border-b border-[#DDE9DF] px-4 sm:px-6 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F7F5EF] flex flex-col pb-20 md:pb-6">
+      <header className="bg-white sticky top-0 z-30 border-b border-[#DDE9DF] px-4 sm:px-6 h-16 flex items-center">
+        <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-[#087F70] flex items-center justify-center text-white font-bold shrink-0" aria-hidden="true">{initials}</div>
           <div>
@@ -69,9 +70,10 @@ export default function UserDashboard() {
         <Link to="/nearby-ngos" className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-[#087F70] bg-[#DDE9DF] px-3.5 py-2 rounded-xl hover:bg-teal-100 transition-colors shrink-0">
           <MapPin className="w-4 h-4" /> Nearby Help
         </Link>
+        </div>
       </header>
 
-      <main className="max-w-4xl mx-auto w-full p-4 sm:p-6 space-y-6 flex flex-col">
+      <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6 flex flex-col">
         {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-2xl p-4 flex gap-2"><AlertTriangle className="w-5 h-5 shrink-0" />{error}</div>}
 
         {/* Impact — bento row, real counters only */}

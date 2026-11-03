@@ -40,7 +40,7 @@ export default function BottomNav() {
           )}
         >
           <LayoutDashboard className={cn('w-5 h-5', isActive(homePath) && 'stroke-[2.5px]')} />
-          <span className="text-[9px] font-bold leading-tight">Home</span>
+          <span className="text-[10px] font-bold leading-tight">Home</span>
         </Link>
 
         {/* Explore */}
@@ -52,7 +52,7 @@ export default function BottomNav() {
           )}
         >
           <MapPin className={cn('w-5 h-5', isActive('/nearby-ngos') && 'stroke-[2.5px]')} />
-          <span className="text-[9px] font-bold leading-tight">Explore</span>
+          <span className="text-[10px] font-bold leading-tight">Explore</span>
         </Link>
 
         {/* CENTER SOS BUTTON */}
@@ -65,7 +65,7 @@ export default function BottomNav() {
           >
             <Siren className="w-6 h-6 text-white" />
           </button>
-          <span className="text-[9px] font-black text-rose-600 mt-0.5">SOS</span>
+          <span className="text-[10px] font-black text-rose-600 mt-0.5">SOS</span>
         </div>
 
         {/* Donate */}
@@ -77,7 +77,7 @@ export default function BottomNav() {
           )}
         >
           <Heart className={cn('w-5 h-5', isActive('/donate') && 'stroke-[2.5px]')} />
-          <span className="text-[9px] font-bold leading-tight">Donate</span>
+          <span className="text-[10px] font-bold leading-tight">Donate</span>
         </Link>
 
         {/* Profile */}
@@ -89,7 +89,7 @@ export default function BottomNav() {
           )}
         >
           <UserCircle className={cn('w-5 h-5', isActive('/profile') && 'stroke-[2.5px]')} />
-          <span className="text-[9px] font-bold leading-tight">Profile</span>
+          <span className="text-[10px] font-bold leading-tight">Profile</span>
         </Link>
 
       </div>

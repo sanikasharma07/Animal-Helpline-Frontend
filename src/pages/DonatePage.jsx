@@ -203,7 +203,7 @@ export default function DonatePage() {
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 md:pb-6">
       {/* Top Navigation */}
       <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-teal-700 font-black text-lg group">
             <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center border border-teal-100 group-hover:scale-105 transition-transform">
               <PawPrint className="w-5 h-5 text-teal-600" />

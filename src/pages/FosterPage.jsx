@@ -91,7 +91,7 @@ export default function FosterPage() {
   return (
     <div className="min-h-screen bg-[#F7F5EF] text-slate-800 pb-20 md:pb-6">
       <header className="sticky top-0 z-40 bg-[#F7F5EF]/90 backdrop-blur-md border-b border-[#DDE9DF]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-[#087F70] flex items-center justify-center text-white"><PawPrint className="w-5 h-5" /></div>
             <div>
@@ -127,12 +127,12 @@ export default function FosterPage() {
               </div>
               <div className="flex gap-2 flex-wrap">
                 {SPECIES_FILTERS.map((sp) => (
-                  <button key={sp} onClick={() => setActiveSpecies(sp)} className={`px-3 py-2 rounded-xl text-xs font-bold border ${activeSpecies === sp ? 'bg-[#087F70] text-white border-[#087F70]' : 'bg-white text-slate-600 border-slate-200'}`}>{sp}</button>
+                  <button key={sp} onClick={() => setActiveSpecies(sp)} className={`px-3 py-2.5 rounded-xl text-xs font-bold border ${activeSpecies === sp ? 'bg-[#087F70] text-white border-[#087F70]' : 'bg-white text-slate-600 border-slate-200'}`}>{sp}</button>
                 ))}
               </div>
               <div className="flex gap-2 flex-wrap">
                 {STATUS_FILTERS.map((st) => (
-                  <button key={st} onClick={() => setActiveStatus(st)} className={`px-3 py-2 rounded-xl text-xs font-bold border ${activeStatus === st ? 'bg-[#183B35] text-white border-[#183B35]' : 'bg-white text-slate-600 border-slate-200'}`}>{st === 'All' ? 'All statuses' : st}</button>
+                  <button key={st} onClick={() => setActiveStatus(st)} className={`px-3 py-2.5 rounded-xl text-xs font-bold border ${activeStatus === st ? 'bg-[#183B35] text-white border-[#183B35]' : 'bg-white text-slate-600 border-slate-200'}`}>{st === 'All' ? 'All statuses' : st}</button>
                 ))}
               </div>
             </div>

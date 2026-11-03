@@ -128,7 +128,7 @@ export default function VolunteerHub() {
   return (
     <div className="min-h-screen bg-[#F7F5EF] text-slate-800 pb-20 md:pb-6">
       <header className="sticky top-0 z-40 bg-[#F7F5EF]/90 backdrop-blur-md border-b border-[#DDE9DF]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-[#087F70] flex items-center justify-center text-white"><Users className="w-5 h-5" /></div>
             <div>
@@ -184,7 +184,7 @@ export default function VolunteerHub() {
               </div>
               <div className="flex gap-2">
                 {[['all', 'All'], ['general', 'General'], ['emergency', 'Emergency-linked']].map(([v, label]) => (
-                  <button key={v} onClick={() => setLinkedFilter(v)} className={`px-3 py-2 rounded-xl text-xs font-bold border ${linkedFilter === v ? 'bg-[#087F70] text-white border-[#087F70]' : 'bg-white text-slate-600 border-slate-200'}`}>{label}</button>
+                  <button key={v} onClick={() => setLinkedFilter(v)} className={`px-3 py-2.5 rounded-xl text-xs font-bold border ${linkedFilter === v ? 'bg-[#087F70] text-white border-[#087F70]' : 'bg-white text-slate-600 border-slate-200'}`}>{label}</button>
                 ))}
               </div>
             </div>

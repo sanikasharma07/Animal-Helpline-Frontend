@@ -1,3 +1,10 @@
+/* Layout standard (UI/UX alignment pass, 2026-11-03): every public page
+   keeps its header inner and its main at the SAME max width (px-4
+   sm:px-6 gutters, main py-8), so header edges line up with content
+   edges; bottom clearance on BottomNav pages is pb-20 md:pb-6; filter
+   chips are py-2.5 and no user-facing text is below text-xs. Dashboards
+   with sidebars keep their own full-height layout and are exempt from
+   the max-width rule, but use the same gutters inside. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
