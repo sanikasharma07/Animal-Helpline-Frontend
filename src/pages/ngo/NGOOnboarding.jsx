@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useGeolocation } from '@/hooks/useGeolocation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Link, useNavigate } from 'react-router';
@@ -26,6 +27,17 @@ export default function NGOOnboarding() {
     operatingCities: [], animalsHandled: [], servicesProvided: [],
     documents: {}
   });
+
+  // Organisation location comes only from the device's current location —
+  // no typed coordinates. Captured values are sent to the backend exactly
+  // as before (lng/lat together, or neither); they are never displayed as
+  // numbers in this form.
+  const { location: geo, error: geoError, isLoading: geoLoading, requestLocation } = useGeolocation();
+  useEffect(() => {
+    if (geo?.lat != null && geo?.lng != null) {
+      setFormData((f) => ({ ...f, lng: String(geo.lng), lat: String(geo.lat) }));
+    }
+  }, [geo]);
 
   const handleNext = () => {
     if (currentStep < 4) setCurrentStep(c => c + 1);
@@ -186,15 +198,19 @@ export default function NGOOnboarding() {
                           {MAJOR_CITIES?.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Longitude (optional)</label>
-                        <input type="number" step="any" min="-180" max="180" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={formData.lng} onChange={e => setFormData({...formData, lng: e.target.value})} placeholder="e.g. 75.8648" />
+                      <div className="col-span-2 border border-slate-200 rounded-lg p-4 space-y-2">
+                        <p className="text-sm font-medium text-slate-700">Organisation location (optional)</p>
+                        <button type="button" onClick={requestLocation} disabled={geoLoading} className="px-4 py-2.5 bg-white border border-teal-200 text-teal-700 rounded-lg text-sm font-semibold hover:bg-teal-50 disabled:opacity-50">
+                          {geoLoading ? 'Locating…' : 'Use my device location'}
+                        </button>
+                        {formData.lng !== '' && formData.lat !== '' && (
+                          <p className="text-sm text-emerald-700">Device location captured for this organisation.
+                            <button type="button" onClick={() => setFormData({ ...formData, lng: '', lat: '' })} className="ml-2 font-semibold text-teal-700 hover:underline">Clear</button>
+                          </p>
+                        )}
+                        {geoError && <p className="text-xs text-rose-600">{geoError} Location access is needed to capture the premises location.</p>}
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Latitude (optional)</label>
-                        <input type="number" step="any" min="-90" max="90" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={formData.lat} onChange={e => setFormData({...formData, lat: e.target.value})} placeholder="e.g. 25.2138" />
-                      </div>
-                      <p className="col-span-2 text-xs text-slate-500">Both coordinates together, or neither. They are what makes your NGO appear in Nearby Help; without them, people nearby cannot find you on the map. Updating your profile later resets verification to pending.</p>
+                      <p className="col-span-2 text-xs text-slate-500">Captured from this device, or not set at all — coordinates are never typed here. They are what makes your NGO appear in Nearby Help; without them, people nearby cannot find you on the map. If you are registering from elsewhere, complete this step on a device at the premises. Updating your profile later resets verification to pending.</p>
                     </div>
                   </div>
                 )}

@@ -147,16 +147,11 @@ export default function NearbyNGOs() {
   const [groupFilter, setGroupFilter] = useState('all'); // all | verified | external
   const [radiusKm, setRadiusKm] = useState(25);
   const [activeId, setActiveId] = useState(null);
-  const [manualLat, setManualLat] = useState('');
-  const [manualLng, setManualLng] = useState('');
-  const [manualError, setManualError] = useState('');
-
   const { location, error: geoError, isLoading: geoLoading, requestLocation } = useGeolocation();
-  // No invented centre: until the user grants location or enters one,
-  // there is nothing to search around. The old code silently searched
-  // around the centre of India.
-  const [manualCenter, setManualCenter] = useState(null);
-  const center = manualCenter || (location?.lat && location?.lng ? [location.lat, location.lng] : null);
+  // Device location only — no typed coordinates anywhere on this page.
+  // Until the user grants device location, there is nothing to search
+  // around. The old code silently searched around the centre of India.
+  const center = (location?.lat && location?.lng) ? [location.lat, location.lng] : null;
 
   const { verified, nonVerified, loading, error, attribution, osmStatus } = useNearbyNGOs(center, radiusKm);
 
@@ -169,18 +164,6 @@ export default function NearbyNGOs() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  const applyManual = (e) => {
-    e.preventDefault();
-    const lat = Number(manualLat);
-    const lng = Number(manualLng);
-    if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
-      setManualError('Enter a valid latitude (-90 to 90) and longitude (-180 to 180).');
-      return;
-    }
-    setManualError('');
-    setManualCenter([lat, lng]);
-  };
 
   const matchesSearch = (entry) => {
     const q = searchQuery.trim().toLowerCase();
@@ -226,30 +209,18 @@ export default function NearbyNGOs() {
 
             {!center && (
               <div className="rounded-xl border border-teal-100 bg-teal-50 p-4 space-y-3">
-                <p className="text-sm font-semibold text-teal-800">Choose a location to find nearby help</p>
+                <p className="text-sm font-semibold text-teal-800">Find help around your device’s current location</p>
                 <button onClick={requestLocation} disabled={geoLoading} className="w-full py-2.5 bg-[#087F70] text-white rounded-lg text-sm font-semibold hover:bg-[#183B35] transition-colors disabled:opacity-50">
                   {geoLoading ? 'Locating…' : 'Use my device location'}
                 </button>
-                {geoError && <p className="text-xs text-slate-600">{geoError}</p>}
-                <form onSubmit={applyManual} className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="text-xs font-medium text-slate-600">Latitude
-                      <input type="number" step="any" value={manualLat} onChange={(e) => setManualLat(e.target.value)} placeholder="25.13" className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
-                    </label>
-                    <label className="text-xs font-medium text-slate-600">Longitude
-                      <input type="number" step="any" value={manualLng} onChange={(e) => setManualLng(e.target.value)} placeholder="75.83" className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
-                    </label>
-                  </div>
-                  {manualError && <p className="text-xs text-rose-600">{manualError}</p>}
-                  <button type="submit" className="w-full py-2 bg-white border border-teal-200 text-teal-700 rounded-lg text-sm font-semibold hover:bg-teal-50">Search this location</button>
-                </form>
+                {geoError && <p className="text-xs text-slate-600">{geoError} Nearby Help needs location access, so please allow it in your browser and try again. There is no way to type coordinates.</p>}
               </div>
             )}
 
             {center && (
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs text-slate-500">Searching around {center[0].toFixed(4)}, {center[1].toFixed(4)}</p>
-                <button onClick={() => setManualCenter(null)} className="text-xs font-semibold text-teal-700 hover:underline">Change location</button>
+                <p className="text-xs text-slate-500">Searching around your device’s current location</p>
+                <button onClick={requestLocation} disabled={geoLoading} className="text-xs font-semibold text-teal-700 hover:underline disabled:opacity-50">Refresh location</button>
               </div>
             )}
 

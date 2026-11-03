@@ -13,9 +13,11 @@ import { Siren, Upload, MapPin, X, ChevronRight, ChevronLeft, CheckCircle2, Aler
 //  - called itself "Broadcaster Mode" / "Dispatch", implying NGOs were
 //    alerted. The backend report only creates a case: no NGO is notified
 //    or assigned until a verified NGO accepts it.
-// This version: no default location at all (device location via
-// useGeolocation, or manual lat/lng — required before submitting), only
-// real photos the user uploads (optional, max 3, as the backend allows),
+// This version: no default location at all — the case location comes
+// only from the device's current location via useGeolocation (no typed
+// coordinates anywhere; if location access is denied, the user cannot
+// submit until they allow it). Only real photos the user uploads
+// (optional, max 3, as the backend allows),
 // species + description only (the backend has no severity field), and
 // copy that says exactly what reporting does and does not do.
 const SPECIES = ['Dog', 'Cat', 'Cow', 'Bird', 'Horse', 'Other']
@@ -23,14 +25,12 @@ const SPECIES = ['Dog', 'Cat', 'Cow', 'Bird', 'Horse', 'Other']
 export default function EmergencySOSModal() {
   const dispatch = useDispatch()
   const { isSOSModalOpen, isLoading, error, successMessage, activeCase } = useSelector((state) => state.emergency)
-  const { location: geo, error: geoError, requestLocation } = useGeolocation()
+  const { location: geo, error: geoError, isLoading: geoLoading, requestLocation } = useGeolocation()
 
   const [step, setStep] = useState(1)
   const [species, setSpecies] = useState('Dog')
   const [description, setDescription] = useState('')
   const [photos, setPhotos] = useState([])
-  const [manualLat, setManualLat] = useState('')
-  const [manualLng, setManualLng] = useState('')
   const [localError, setLocalError] = useState('')
 
   if (!isSOSModalOpen) return null
@@ -39,8 +39,6 @@ export default function EmergencySOSModal() {
     setStep(1)
     setPhotos([])
     setDescription('')
-    setManualLat('')
-    setManualLng('')
     setLocalError('')
     dispatch(closeSOSModal())
   }
@@ -50,14 +48,15 @@ export default function EmergencySOSModal() {
     setPhotos(files)
   }
 
-  const resolvedLat = geo?.lat ?? (manualLat !== '' ? Number(manualLat) : null)
-  const resolvedLng = geo?.lng ?? (manualLng !== '' ? Number(manualLng) : null)
+  // Device location only — no typed coordinates exist in this modal.
+  const resolvedLat = geo?.lat ?? null
+  const resolvedLng = geo?.lng ?? null
   const hasLocation = Number.isFinite(resolvedLat) && Number.isFinite(resolvedLng)
     && resolvedLat >= -90 && resolvedLat <= 90 && resolvedLng >= -180 && resolvedLng <= 180
 
   const handleSubmit = () => {
     if (!description.trim()) { setLocalError('Please describe what is wrong with the animal.'); return }
-    if (!hasLocation) { setLocalError('Location is required. Use device location or enter latitude and longitude — no location is filled in for you.'); return }
+    if (!hasLocation) { setLocalError('Location is required. Allow location access and tap “Use my device location” — coordinates are never typed in this app.'); return }
     setLocalError('')
     dispatch(reportEmergency({ species, quickDescription: description.trim(), longitude: resolvedLng, latitude: resolvedLat, mediaFiles: photos }))
   }
@@ -119,17 +118,10 @@ export default function EmergencySOSModal() {
             {step === 3 && (
               <div className="space-y-3">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2"><MapPin className="w-5 h-5 text-[#087F70]" /> Where is the animal?</h3>
-                <p className="text-sm text-slate-600">The backend requires coordinates. Nothing is pre-filled: use your device location, or type the coordinates yourself.</p>
-                <button onClick={requestLocation} className="w-full py-3 bg-white border border-slate-200 text-sm font-bold rounded-xl">Use my device location</button>
-                {geo && <p className="text-sm text-emerald-700">Device location: {geo.lat.toFixed(5)}, {geo.lng.toFixed(5)}</p>}
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="block text-xs font-bold text-slate-700">Latitude (−90 to 90)
-                    <input type="number" step="any" min="-90" max="90" value={manualLat} onChange={(e) => setManualLat(e.target.value)} placeholder="e.g. 25.2138" className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-normal" />
-                  </label>
-                  <label className="block text-xs font-bold text-slate-700">Longitude (−180 to 180)
-                    <input type="number" step="any" min="-180" max="180" value={manualLng} onChange={(e) => setManualLng(e.target.value)} placeholder="e.g. 75.8648" className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-normal" />
-                  </label>
-                </div>
+                <p className="text-sm text-slate-600">The case location comes from your device’s current location. Tap below and allow location access — there is no way to type coordinates.</p>
+                <button onClick={requestLocation} disabled={geoLoading} className="w-full py-3 bg-white border border-slate-200 text-sm font-bold rounded-xl disabled:opacity-50">{geoLoading ? 'Locating…' : 'Use my device location'}</button>
+                {geo && <p className="text-sm text-emerald-700">Device location captured. A verified NGO will see this location when it accepts the case.</p>}
+                {geoError && <p className="text-sm text-rose-600">{geoError} Reporting needs location access, so please allow it in your browser and try again.</p>}
                 <div className="flex gap-2">
                   <button onClick={() => setStep(2)} className="flex-1 py-3 bg-white border border-slate-200 text-sm font-bold rounded-xl flex items-center justify-center gap-1"><ChevronLeft className="w-4 h-4" /> Back</button>
                   <button onClick={handleSubmit} disabled={isLoading} className="flex-1 py-3 bg-[#C96A4A] text-white text-sm font-bold rounded-xl disabled:opacity-50">{isLoading ? 'Reporting…' : 'Report emergency'}</button>

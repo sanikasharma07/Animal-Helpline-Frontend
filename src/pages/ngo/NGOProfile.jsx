@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import API from '@/api/axios'
+import { useGeolocation } from '@/hooks/useGeolocation'
 import { Building, MapPin, Save, AlertTriangle, Shield } from 'lucide-react'
 
 // Real own profile: GET /ngo/profile. Editing uses the same combined
@@ -17,6 +18,19 @@ export default function NGOProfile() {
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Location edits come only from the device's current location — no
+  // typed coordinates. Saving sends coordinates only when both are set;
+  // restoring the saved values therefore keeps the stored location.
+  const { location: geo, error: geoError, isLoading: geoLoading, requestLocation } = useGeolocation()
+  useEffect(() => {
+    if (geo?.lat != null && geo?.lng != null) {
+      setFormData((f) => ({ ...f, lng: String(geo.lng), lat: String(geo.lat) }))
+    }
+  }, [geo])
+  const savedLng = profile?.location?.coordinates?.[0] ?? ''
+  const savedLat = profile?.location?.coordinates?.[1] ?? ''
+  const locationChanged = formData.lng !== String(savedLng) || formData.lat !== String(savedLat)
 
   const fetchProfile = async () => {
     setLoading(true)
@@ -123,19 +137,28 @@ export default function NGOProfile() {
                 <label className="block text-xs font-bold text-slate-700">State
                   <input value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
                 </label>
-                <label className="block text-xs font-bold text-slate-700">Longitude (optional, both coordinates together)
-                  <input value={formData.lng} onChange={(e) => setFormData({ ...formData, lng: e.target.value })} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
-                </label>
-                <label className="block text-xs font-bold text-slate-700">Latitude
-                  <input value={formData.lat} onChange={(e) => setFormData({ ...formData, lat: e.target.value })} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
-                </label>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-4 space-y-2">
+                <p className="text-xs font-bold text-slate-700">Location (optional)</p>
+                <button type="button" onClick={requestLocation} disabled={geoLoading} className="px-4 py-2.5 bg-white border border-teal-200 text-teal-700 rounded-xl text-xs font-bold hover:bg-teal-50 disabled:opacity-50">
+                  {geoLoading ? 'Locating…' : 'Capture device location'}
+                </button>
+                {formData.lng !== '' && formData.lat !== '' && (
+                  <p className="text-xs text-slate-600">{locationChanged ? 'New device location captured — saving will update it.' : 'Location saved for Nearby Help.'}
+                    {locationChanged && (
+                      <button type="button" onClick={() => setFormData({ ...formData, lng: String(savedLng), lat: String(savedLat) })} className="ml-2 font-bold text-teal-700 hover:underline">Keep saved location</button>
+                    )}
+                  </p>
+                )}
+                {formData.lng === '' && formData.lat === '' && <p className="text-xs text-slate-500">No location saved yet. Capturing sets it from this device — coordinates are never typed.</p>}
+                {geoError && <p className="text-xs text-rose-600">{geoError}</p>}
               </div>
             </div>
           ) : (
             <div className="space-y-2 text-sm text-slate-600">
               <p>{profile.description}</p>
               <p className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {[profile.address?.street, profile.address?.city, profile.address?.state, profile.address?.pinCode].filter(Boolean).join(', ') || 'No address on file'}</p>
-              {profile.location?.coordinates && <p>Coordinates: {profile.location.coordinates[1]}, {profile.location.coordinates[0]} (used for Nearby Help)</p>}
+              {profile.location?.coordinates && <p>Location saved for Nearby Help</p>}
             </div>
           )}
 

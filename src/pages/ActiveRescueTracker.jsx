@@ -101,7 +101,7 @@ export default function ActiveRescueTracker() {
             <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#DDE9DF] text-[#183B35] self-start">{c.status}</span>
           </div>
           <p className="text-sm text-slate-600">{c.animalInfo?.quickDescription || c.quickDescription || ''}</p>
-          {c.location?.coordinates && <p className="text-xs text-slate-500 flex items-center gap-1"><MapPin className="w-4 h-4" /> Location: {c.location.coordinates[1]}, {c.location.coordinates[0]}</p>}
+          {c.location?.coordinates && <p className="text-xs text-slate-500 flex items-center gap-1"><MapPin className="w-4 h-4" /> Case location captured from the reporter’s device</p>}
           <p className="text-xs text-slate-500 flex items-center gap-1"><Shield className="w-4 h-4 text-[#087F70]" /> Assigned NGO: {c.assignedNgo?.organizationName || 'Not yet assigned — a verified NGO can accept this case.'}</p>
           {c.aiCare && (
             <div className="bg-[#F7F5EF] border border-[#DDE9DF] rounded-xl p-4">
